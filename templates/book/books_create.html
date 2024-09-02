@@ -1,0 +1,287 @@
+{% load widget_tweaks %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本情報管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script>
+        function openCamera() {
+            // モーダルを表示
+            var myModal = new bootstrap.Modal(document.getElementById('cameraModal'));
+            myModal.show();
+            var modalWidth = document.querySelector('.modal-dialog').offsetWidth;
+            var cameraWidth = Math.min(modalWidth, 640); // 最大640pxに制限
+            var cameraHeight = Math.min(cameraWidth * 0.625,); // アスペクト比4:3に基づく高さ
+        
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#camera'),
+                    constraints: {
+                        facingMode: "environment",
+                        width: cameraWidth,
+                        height: cameraHeight
+                    },
+                },
+                decoder: {
+                    readers: ["ean_reader"]
+                },
+            }, function (err) {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.log("QuaggaJS initialized");
+                Quagga.start();
+            });
+        
+            Quagga.onDetected(function (result) {
+                const code = result.codeResult.code;
+                if (code.startsWith("97")) {
+                    document.getElementById('id_isbn').value = code;
+                    Quagga.stop();
+                    // モーダルを閉じる
+                    myModal.hide();
+                    alert("ISBNコードが読み取られました: " + code);
+                }
+            });
+        }
+
+        function fillBookInfo() {
+            let isbn = document.getElementById('id_isbn').value;
+            if (isbn) {
+                $.ajax({
+                    url: "{% url 'book:retrieve_book' %}",
+                    method: "POST",
+                    data: {
+                        isbn: isbn,
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(data) {
+                        if (data.error) {
+                            alert(data.error);
+                        } else {
+                            $('#id_title').val(data.title);
+                            $('#id_author').val(data.authors);
+                            $('#id_publisher').val(data.publisher);
+                            $('#id_publication_date').val(data.publication_date);
+                            $('#id_category').val(data.category);
+                            $('#id_image_link').val(data.image_link);
+                            $('#id_price').val(data.price);
+                            $('#id_edition').val(data.edition);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('Error: ' + error);
+                    }
+                });
+            } else {
+                alert('ISBNを入力してください。');
+            }
+        };
+    </script>
+    <style>
+        html {
+            min-height: 100%;
+            position: relative;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            margin-bottom: 60px;
+        }
+        header {
+            width: 100%;
+        }
+        footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+        }
+        .main-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .form-container {
+            display: flex;
+            gap: 20px;
+        }
+        .form-container .form {
+            flex: 1;
+            max-width: 500px;
+        }
+        .form-container #camera {
+            flex: 1;
+            max-width: 200px;
+        }
+        .form-check-input {
+            /* チェックボックスのサイズや外観を調整する例 */
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+        .form-check-label {
+            /* form-labelと同じスタイルを適用 */
+            font-size: 1rem;
+            font-weight: 400;
+            color: #212529;
+        }
+    
+        .form-check {
+            margin-bottom: 1rem; /* 必要に応じて調整 */
+        }
+        /* モーダルの基本スタイル */
+        .modal-dialog {
+            max-width: 90%; /* スマートフォンなど小さな画面での最大幅 */
+            width: auto;
+        }
+
+        /* モーダルの幅を最大640pxに設定し、画面サイズに応じて調整 */
+        .modal-dialog {
+            max-width: 640px;
+            width: 100%;
+        }
+        /* モーダルコンテンツも100%に設定 */
+        .modal-content {
+            width: 100%;
+        }
+        .modal-body{
+            width: 100%;
+        }
+        #camera {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #camera video{
+            width: 100%;
+        }
+        #camera canvas.drawingBuffer {
+            display: none;
+        }
+
+        /* スマートフォン（幅が768px以下）の場合 */
+        @media (max-width: 768px) {
+            .modal-dialog {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="d-flex flex-column h-100">
+    <header>
+        <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="{% url 'accounts:index' %}">分散型図書管理アプリ</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    {% if user.is_authenticated %}
+                    <ul class="navbar-nav ms-auto mb-2 mb-md-0">
+                        <li class="nav-item">
+                            <form method="POST" action="{% url 'accounts:logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link">ログアウト</button>
+                            </form>
+                        </li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+    </header>
+    <main class="flex-shrink-0">
+        <div class="container mt-5 pt-5">
+            {% if user.is_superuser %}
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'book:books_list' %}" class="btn btn-secondary mb-3">本情報管理画面へ</a>
+            </div>
+            <div class='main-title  border-bottom'>本の登録</div>
+            <div class="form-container">
+                <div class="form">
+                    <button type="button" onclick="openCamera()" class="btn btn-secondary mb-3">ISBNをスキャン</button>
+                    <button type="button" onclick="fillBookInfo()" class="btn btn-secondary mb-3">ISBNから自動入力</button>
+                    <form method="post" class="form-signin w-100 m-auto">
+                        {% csrf_token %}
+                        {% for field in form %}
+                        <div class="form-floating mb-3 align-items-center">
+                            {% if field.field.widget.input_type == 'checkbox' %}
+                                <div class="form-check">
+                                    <label class="form-check-label" for="{{ field.id_for_label }}">
+                                        {{ field.label }}
+                                    </label>
+                                    {{ field|add_class:"form-check-input" }}
+                                </div>
+                            {% else %}
+                                {{ field|add_class:"form-control" }}
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {% if field.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ field.errors|striptags }}
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary">登録</button>
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-warning">
+                                    {{ message }}
+                                </div>
+                                <button type="submit" name="confirm" class="btn btn-warning">確認して登録</button>
+                                <a href="{% url 'book:books_list' %}" class="btn btn-secondary">キャンセル
+                                </a>
+                            {% endfor %}
+                        {% endif %}
+                    </form>
+                    <script>
+                        document.getElementById('myForm').addEventListener('submit', function() {
+                            // ボタンを取得
+                            const submitButton = document.getElementById('submitButton');
+                            
+                            // ボタンを無効化
+                            submitButton.disabled = true;
+                        
+                            // 必要に応じて、ボタンのテキストやスタイルを変更することも可能
+                            submitButton.innerText = '送信中...';
+                        
+                            // フォームの送信が続行される
+                        });
+                        </script>
+                </div>
+            </div>
+            {% else %}
+            <a href="{% url 'book:index' %}" class="btn btn-primary">ホーム画面へ</a>
+            {% endif %}
+        </div>
+        <div class="modal fade" id="cameraModal" tabindex="-1" aria-labelledby="cameraModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <div id="camera" class="d-flex justify-content-center align-items-center"></div>
+                </div>
+              </div>
+            </div>
+        </div>  
+    </main>
+    <footer class="footer mt-auto py-3 bg-body-tertiary">
+        <div class="container">
+            <span class="text-muted">Place sticky footer content here.</span>
+        </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分散型図書管理アプリ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link href='https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.css' rel='stylesheet' />
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.27.0/moment.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/locale/ja.js'></script>
+    <style>
+        .fc-unavailable {
+            background-color: red;
+            pointer-events: none;
+        }
+        html{
+        min-height: 100%;
+        position: relative;
+        }
+        body {
+        margin: 0;
+        padding: 0;
+        margin-bottom: 60px;
+        }
+        header {
+        width: 100%;
+        }
+        footer {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        }
+        .main-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="d-flex flex-column h-100">
+    <header>
+        <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="{% url 'accounts:index' %}">分散型図書管理アプリ</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    {% if user.is_authenticated %}
+                    <ul class="navbar-nav ms-auto mb-2 mb-md-0">
+                        <li class="nav-item">
+                            <form method="POST" action="{% url 'accounts:logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link">ログアウト</button>
+                            </form>
+                        </li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+    </header>
+  <main class="flex-shrink-0">
+    <div class="container mt-5 pt-5">
+        {% if user.is_authenticated %}
+        <div class="d-flex justify-content-end">
+            <a href="{% url 'book:book_detail' book.pk %}" class="btn btn-secondary mb-3">戻る</a>
+        </div>
+        <div class='main-title  border-bottom'>「{{book.title}}」を予約する</div>
+        <form id='rent-form' method="post" action="{% url 'book:book_reservation' book.pk %}">
+            {% csrf_token %}
+            <input type="hidden" id="checkout_date" name="checkout_date">
+            <input type="hidden" id="scheduled_return_date" name="scheduled_return_date">
+            <input type="hidden" name="book_pk" value="{{ book.pk }}">
+        </form>
+        <div id='calendar'></div>
+
+        <script>
+            $(document).ready(function() {
+                var unavailableDates = {{ unavailable_dates|safe }};
+                var today = moment().format('YYYY-MM-DD');
+                var selectedDate = null;
+                var action = 'checkout'; // 初期アクションは貸出日の設定
+                $('#calendar').fullCalendar({
+                    header: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'month',
+                    },
+                    selectable: true,
+                    validRange: {
+                        start: today
+                    },
+                    locale: 'ja',
+                    dayRender: function(date, cell) {
+                        var formattedDate = date.format('YYYY-MM-DD');
+                        // todayがunavailableDatesに含まれる場合、デザインをfc-unavailableにする
+                        if (formattedDate === today) {
+                            cell.removeClass('fc-today');
+                            if (unavailableDates.includes(today)) {
+                                cell.addClass('fc-unavailable');
+                            }
+                        } else if (unavailableDates.includes(formattedDate)) {
+                            cell.addClass('fc-unavailable');
+                        }
+                    },
+                    dayClick: function(date, jsEvent, view) {
+                        var formattedDate = date.format('YYYY-MM-DD');
+                        
+                        if (action === 'checkout') {
+                            if (unavailableDates.includes(formattedDate)) {
+                                alert('この日は借りられません');
+                            } else {
+                                document.getElementById('checkout_date').value = formattedDate;
+                                action = 'return'; // 次回のクリックは返却予定日の設定
+                                alert('貸出日を設定しました: ' + formattedDate +'次は返却予定日を設定してください。');
+                            }
+                        } else if (action === 'return') {
+                            if (unavailableDates.includes(formattedDate)) {
+                                alert('この日は借りられません');
+                            } else {
+                                document.getElementById('scheduled_return_date').value = formattedDate;
+                                action = 'checkout'; // リセット
+                                alert('返却予定日を設定しました: ' + formattedDate);
+                            }
+                            document.getElementById('rent-form').submit();
+                        }
+                    }
+                });
+            });
+        </script>
+        {% else %}
+        <a href="{% url 'book:index' %}" class="btn btn-secondary">ホーム画面へ</a>
+        {% endif %}
+    </div>
+</main>
+  <footer class="footer mt-auto py-3 bg-body-tertiary">
+    <div class="container">
+        <span class="text-muted">Place sticky footer content here.</span>
+    </div>
+  </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+</body>
+</html>

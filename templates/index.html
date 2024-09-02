@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分散型図書管理アプリ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        html{
+        min-height: 100%;
+        position: relative;
+        }
+        body {
+        margin: 0;
+        padding: 0;
+        margin-bottom: 60px;
+        }
+        header {
+        width: 100%;
+        }
+        footer {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        }
+        .feature {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        .feature-icon {
+            border-radius: 50%;
+            width: 4rem;
+            height: 4rem;
+            font-size: 2rem;
+            color: black; /* アイコンの色を黒に設定 */
+        }
+        .feature h3 {
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        .feature p {
+            margin-bottom: 1.5rem;
+        }
+        .icon-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d; /* btn-secondary の色に合わせる */
+        }
+        .icon-link svg {
+            margin-left: 0.5rem;
+        }
+        .alert {
+            margin-bottom: 20px; /* アラートとコンテンツ間のマージン */
+        }
+        .alert svg {
+            width: 24px;
+            height: 24px;
+        }
+    </style>
+    <link href="features.css" rel="stylesheet">
+</head>
+<body class="d-flex flex-column h-100">
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+        <symbol id="exclamation-triangle-fill" viewBox="0 0 16 16">
+          <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+        </symbol>
+    </svg>
+    <header>
+        <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="{% url 'accounts:index' %}">分散型図書管理アプリ</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    {% if user.is_authenticated %}
+                    <ul class="navbar-nav ms-auto mb-2 mb-md-0">
+                        <li class="nav-item">
+                            <form method="POST" action="{% url 'accounts:logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link">ログアウト</button>
+                            </form>
+                        </li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+    </header>
+    <main class="flex-shrink-0">
+        <div class="container mt-5 pt-5">
+            {% if user.is_authenticated %}
+            <div class="container px-4" id="featured-3">
+                <h2 class="pb-2 border-bottom">
+                    ようこそ{{ user.username }}さん
+                </h2>
+                {% if overdue_lendings %}
+                <div class="alert alert-danger d-flex align-items-center" role="alert">
+                    <svg class="bi flex-shrink-0 me-2" role="img" aria-label="Warning:"><use xlink:href="#exclamation-triangle-fill"/></svg>
+                    <a href="{% url 'book:rent_list' %}" class="text-danger"> 返却期限を過ぎている本があります</a>
+                </div>
+                {% endif %}
+                {% if not_returned %}
+                <div class="alert alert-warning d-flex align-items-center" role="alert">
+                    <svg class="bi flex-shrink-0 me-2" role="img" aria-label="Warning:"><use xlink:href="#exclamation-triangle-fill"/></svg>
+                    <a href="{% url 'book:rent_list' %}" class="text-warning">
+                        予約中の本がまだ返却されていません。ご迷惑おかけしますが、今しばらくお待ちください
+                    </a>
+                </div>
+                {% endif %}
+                <div class="row g-4 py-5 row-cols-1 row-cols-lg-3">
+                    <div class="feature col">
+                        <div class="feature-icon d-inline-flex align-items-center justify-content-center  fs-2 mb-3">
+                            <i class="bi bi-bookshelf h1"></i>
+                        </div>
+                        <h3 class="fs-2 text-body-emphasis">ユーザー本棚</h3>
+                        <p>ユーザーの本棚にアクセスし、コレクションを管理します。</p>
+                        <a href="{% url 'book:bookshelf' %}" class="icon-link">
+                            詳細へ
+                            <svg class="bi"><use xlink:href="#chevron-right"/></svg>
+                        </a>
+                    </div>
+                    <div class="feature col">
+                        <div class="feature-icon d-inline-flex align-items-center justify-content-center  fs-2 mb-3">
+                            <i class="bi bi-book-half h1"></i>
+                        </div>
+                        <h3 class="fs-2 text-body-emphasis">レンタル一覧</h3>
+                        <p>現在レンタル中の本の一覧を確認し、管理します。</p>
+                        <a href="{% url 'book:rent_list' %}" class="icon-link">
+                            詳細へ
+                            <svg class="bi"><use xlink:href="#chevron-right"/></svg>
+                        </a>
+                    </div>
+                    {% if user.is_superuser %}
+                    <div class="feature col">
+                        <div class="feature-icon d-inline-flex align-items-center justify-content-center  fs-2 mb-3">
+                            <i class="bi bi-gear-fill h1"></i>
+                        </div>
+                        <h3 class="fs-2 text-body-emphasis">情報管理</h3>
+                        <p>設定や管理画面へのリンクです。<br>詳しい情報や操作が可能です。</p>
+                        <a href="{% url 'book:management' %}" class="icon-link">
+                            詳細へ
+                            <svg class="bi"><use xlink:href="#chevron-right"/></svg>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <ul class="list-unstyled d-flex justify-content-center">
+                <li class='index_btn me-2'>
+                    <a href="{% url 'accounts:signup' %}" class="btn btn-success">サインアップ</a>
+                </li>
+                <li class='index_btn'>
+                    <a href="{% url 'accounts:login' %}" class="btn btn-primary">ログイン</a>
+                </li>
+            </ul>
+            {% endif %}
+        </div>
+    </main>
+    <footer class="footer mt-auto py-3 bg-body-tertiary">
+        <div class="container">
+            <span class="text-muted">Place sticky footer content here.</span>
+        </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+                    
+</body>
+</html>

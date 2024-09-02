@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分散型図書管理アプリ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        html {
+            min-height: 100%;
+            position: relative;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            margin-bottom: 60px;
+        }
+        header {
+            width: 100%;
+        }
+        footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+        }
+        .main-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        .main-title-min {
+            font-size: 1.0rem;
+            font-weight: bold;
+            margin-top: 2rem;
+        }
+        .table-container {
+            margin-top: 1rem;
+        }
+        .th-title{
+            width: 34%;
+        }
+        .th-date{
+            width: 11%;
+        }
+        .pagination {
+            margin-top: 1rem;
+        }
+        .pagination .page-link {
+            padding: .5rem .75rem;
+        }
+    </style>
+</head>
+<body class="d-flex flex-column h-100">
+    <header>
+        <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="{% url 'accounts:index' %}">分散型図書管理アプリ</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    {% if user.is_authenticated %}
+                    <ul class="navbar-nav ms-auto mb-2 mb-md-0">
+                        <li class="nav-item">
+                            <form method="POST" action="{% url 'accounts:logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link">ログアウト</button>
+                            </form>
+                        </li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+    </header>
+    <main class="flex-shrink-0">
+        <div class="container mt-5 pt-5">
+            {% if user.is_authenticated %}
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'book:index' %}" class="btn btn-secondary mb-3">ホーム画面へ</a>
+            </div>
+            <div class='main-title  border-bottom'>レンタルしている本一覧</div>
+            <div class="main-title-min">返却期限が過ぎている物</div>
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    {% if overdue_lendings %}
+                    <thead class='table-dark'>
+                        <tr>
+                            <th class='th-title'>本のタイトル</th>
+                            <th class='th-date'>貸出日</th>
+                            <th class='th-date'>返却予定日</th>
+                            <th class='th-date'>予約 貸出日</th>
+                            <th class='th-date'>予約 返却予定日</th>
+                            <th class='th-date'>返却日</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lending in overdue_lendings %}
+                        <tr>
+                            <td><i class="bi bi-exclamation-triangle-fill"></i>{{ lending.books.title }}</td>
+                            <td>{% if lending.checkout_date %}{{ lending.checkout_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.scheduled_return_date %}{{ lending.scheduled_return_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.reservation_checkout_date %}{{ lending.reservation_checkout_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.reservation_scheduled_return_date %}{{ lending.reservation_scheduled_return_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.return_date %}{{ lending.return_date }}{% else %}--{% endif %}</td>
+                            <td><a href="{% url 'book:return_book' lending.pk %}" class="list-btn">返却する</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% else %}
+                    <p>データがありません</p>
+                    {% endif %}
+                </table>
+            </div>
+            <div class="main-title-min">レンタル中</div>
+            <div class="table-container">
+                <table class="table table-striped table-bordered">
+                    {% if renting_lendings %}
+                    <thead class='table-dark'>
+                        <tr>
+                            <th class='th-title'>本のタイトル</th>
+                            <th class='th-date'>貸出日</th>
+                            <th class='th-date'>返却予定日</th>
+                            <th class='th-date'>予約 貸出日</th>
+                            <th class='th-date'>予約 返却予定日</th>
+                            <th class='th-date'>返却日</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lending in renting_lendings %}
+                        <tr>
+                            <td>{{ lending.books.title }}</td>
+                            <td>{% if lending.checkout_date %}{{ lending.checkout_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.scheduled_return_date %}{{ lending.scheduled_return_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.reservation_checkout_date %}{{ lending.reservation_checkout_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.reservation_scheduled_return_date %}{{ lending.reservation_scheduled_return_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.return_date %}{{ lending.return_date }}{% else %}--{% endif %}</td>
+                            <td><a href="{% url 'book:return_book' lending.pk %}" class="list-btn">返却する</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% else %}
+                    <p>データがありません</p>
+                    {% endif %}
+                </table>
+            </div>
+            <div class="main-title-min">予約中</div>
+            <div class="table-container">
+                <table class="table table-striped table-bordered">
+                    {% if reserved_lendings %}
+                    <thead class='table-dark'>
+                        <tr>
+                            <th class='th-title'>本のタイトル</th>
+                            <th class='th-date'>貸出日</th>
+                            <th class='th-date'>返却予定日</th>
+                            <th class='th-date'>予約 貸出日</th>
+                            <th class='th-date'>予約 返却予定日</th>
+                            <th class='th-date'>返却日</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lending in reserved_lendings %}
+                        <tr>
+                            <td>{% if lending.reservation_checkout_date <= today %}<i class="bi bi-exclamation-triangle-fill"></i>{% endif %}
+                                {{ lending.books.title }}
+                            </td>
+                            <td>{% if lending.checkout_date %}{{ lending.checkout_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.scheduled_return_date %}{{ lending.scheduled_return_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.reservation_checkout_date %}{{ lending.reservation_checkout_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.reservation_scheduled_return_date %}{{ lending.reservation_scheduled_return_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.return_date %}{{ lending.return_date }}{% else %}--{% endif %}</td>
+                            <td><a href="{% url 'book:cancel_reservation' lending.pk %}" class="list-btn">予約キャンセルする</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% else %}
+                    <p>データがありません</p>
+                    {% endif %}
+                </table>
+            </div>
+            <div class="main-title-min">返却済み</div>
+            <div class="table-container">
+                <table class="table table-striped table-bordered">
+                    {% if returned_lendings %}
+                    <thead class='table-dark'>
+                        <tr>
+                            <th class='th-title'>本のタイトル</th>
+                            <th class='th-date'>貸出日</th>
+                            <th class='th-date'>返却予定日</th>
+                            <th class='th-date'>予約 貸出日</th>
+                            <th class='th-date'>予約 返却予定日</th>
+                            <th class='th-date'>返却日</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lending in returned_lendings %}
+                        <tr>
+                            <td>{{ lending.books.title }}</td>
+                            <td>{% if lending.checkout_date %}{{ lending.checkout_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.scheduled_return_date %}{{ lending.scheduled_return_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.reservation_checkout_date %}{{ lending.reservation_checkout_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.reservation_scheduled_return_date %}{{ lending.reservation_scheduled_return_date }}{% else %}--{% endif %}</td>
+                            <td>{% if lending.return_date %}{{ lending.return_date }}{% else %}--{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% else %}
+                    <p>データがありません</p>
+                    {% endif %}
+                </table>
+            </div>
+            {% else %}
+            <a href="{% url 'book:index' %}" class="btn btn-secondary">ホーム画面へ</a>
+            {% endif %}
+        </div>
+    </main>
+    <footer class="footer mt-auto py-3 bg-body-tertiary">
+        <div class="container">
+            <span class="text-muted">Place sticky footer content here.</span>
+        </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+</body>
+</html>

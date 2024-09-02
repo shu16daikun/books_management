@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分散型図書管理アプリ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <style>
+        html{
+        min-height: 100%;
+        position: relative;
+        }
+        body {
+        margin: 0;
+        padding: 0;
+        margin-bottom: 60px;
+        }
+        header {
+        width: 100%;
+        }
+        footer {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        }
+        .main-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        /* メインコンテナのスタイル */
+        .container {
+            max-width: 800px; /* 横長にならないように最大幅を指定 */
+            margin-left: auto; /* 左右のマージンを自動にして中央寄せ */
+            margin-right: auto;
+        }
+
+        /* book_imgの高さを調整して横長にならないようにする */
+        .book_img {
+            width: 100%;
+            height: calc(100vh - 10rem); /* 画像の高さをメインセクションいっぱいに設定 */
+            object-fit: cover; /* 画像のアスペクト比を維持しつつ、領域を埋める */
+        }
+        /* book-detailsのスタイル調整 */
+        .book-details {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            /* 必要に応じてパディングやマージンを追加 */
+        }
+        
+        .status {
+            border-radius: 0.25rem; /* 貸出状況の背景色をラウンドさせる場合 */
+        }
+        
+        .review-list {
+            max-height: 400px; /* レビュー部分にスクロールを追加 */
+            overflow-y: auto;
+        }
+        
+        .ms-3 {
+            margin-left: 1rem; /* 画像と貸出状況の間にマージンを追加 */
+        }
+        
+        .mt-4 {
+            margin-top: 2rem; /* レビューと貸出状況の間にスペースを追加 */
+        }
+        /* ここでcol-md-8のマージンを調整します */
+        .col-md-8 {
+            margin-left: auto;
+            margin-right: auto;
+            /* 必要に応じてパディングも調整 */
+            padding-left: 1rem; /* 左側のパディング */
+            padding-right: 1rem; /* 右側のパディング */
+        }
+
+        /* 追加のマージン調整が必要な場合は、以下のように個別に設定できます */
+        .book-info {
+            margin-bottom: 1.5rem; /* book-infoとレビュー間の間隔 */
+        }
+    </style>
+</head>
+<body class="d-flex flex-column h-100">
+    <header>
+        <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="{% url 'accounts:index' %}">分散型図書管理アプリ</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    {% if user.is_authenticated %}
+                    <ul class="navbar-nav ms-auto mb-2 mb-md-0">
+                        <li class="nav-item">
+                            <form method="POST" action="{% url 'accounts:logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link">ログアウト</button>
+                            </form>
+                        </li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+    </header>
+    <main class="flex-shrink-0">
+        <div class="container mt-5 pt-5">
+            {% if user.is_authenticated %}
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'book:bookshelf' %}" class="btn btn-secondary mb-3">ユーザー本棚へ</a>
+            </div>
+            <div class='main-title border-bottom'>「{{book.title}}」</div>
+            <div class='main-title'>著者: {{ book.author }}</div> 
+            <div class="d-flex">
+                <div class="book-info flex-shrink-0">
+                    {% if book.image_link %}
+                        <img src="{{ book.image_link }}" alt="{{ book.title }}" class="book_img">
+                    {% else %}
+                        <img src="{% static 'images/no_image.jpg' %}" alt="{{ book.title }}" class="book_img">
+                    {% endif %}
+                </div>
+                <div class="col-md-8  mx-auto">
+                    <div class="book-details d-flex ">
+                        <!-- 貸出状況 -->
+                        <div class="d-flex flex-column align-items-center">
+                            {% if book.is_lend_out %}
+                                <div class="bg-warning text-white p-2 rounded w-100 text-center">貸出中</div>
+                                <a href="{% url 'book:book_reservation' book_pk=book.pk %}" class="btn btn-primary mt-2  w-100">この本を予約する</a>
+                            {% else %}
+                                <div class="bg-success text-white p-2 rounded w-100 text-center">貸出可</div>
+                                <a href="{% url 'book:book_rent' book_pk=book.pk %}" class="btn btn-primary mt-2  w-100">この本を借りる</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class='review position-relative mt-4 align-bottom'>
+                        <h5 class="border-bottom pb-2 mb-3">レビュー内容</h5>
+                        <div class="review-list mt-3">
+                            <ul class="list-group">
+                                {% for review in reviews %}
+                                    <li class="list-group-item">{{ review.comment }}</li>
+                                {% empty %}
+                                    <div class="alert alert-info">レビューがありません</div>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <a href="{% url 'book:index' %}" class="btn btn-secondary">ホーム画面へ</a>
+            {% endif %}
+        </div>
+    </main>
+    
+  <footer class="footer mt-auto py-3 bg-body-tertiary">
+    <div class="container">
+        <span class="text-muted">Place sticky footer content here.</span>
+    </div>
+  </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+</body>
+</html>
