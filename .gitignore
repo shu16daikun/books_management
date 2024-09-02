@@ -1,0 +1,17 @@
+# Python関連のファイル
+*.pyc
+__pycache__/
+
+# 環境設定ファイル
+.env
+
+# デバッグ用ログ
+debug.log
+
+# OSごとのファイル
+.DS_Store
+Thumbs.db
+
+# バージョン管理に含めたくないディレクトリ
+/node_modules/
+/venv/
