@@ -45,7 +45,7 @@
    ```
    py manage.py createsuperuser
    #ユーザー名、E-mailアドレス、パスワードを設定する
-   
+   ```
 7. ローカルサーバーを起動します。
    ```
    py manage.py runserver
