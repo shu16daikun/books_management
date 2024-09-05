@@ -1,7 +1,12 @@
 import requests
 import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # .envファイルを読み込む
+api_key = os.getenv('api_key')
 def get_book_info(isbn):
-    api_key = "AIzaSyB7rNc6Xo04DcfeZs0EgX-iA4bqw8uPIWM"
+    
     url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}&key={api_key}"
     response = requests.get(url)
     print(f"Status Code: {response.status_code}")
