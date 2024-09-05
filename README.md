@@ -22,6 +22,9 @@
 * JavaScript（jQuery、Quagga、fullcalendar）
 * HTML/CSS、Bootstrap
 
+#### システム構成
+![システム構成図](docs/image/system_configuration.png)
+
 #### 設計図
 * ER図
 
