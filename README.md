@@ -22,6 +22,17 @@
 * JavaScript（jQuery、Quagga、fullcalendar）
 * HTML/CSS、Bootstrap
 
+#### 設計図
+* ER図
+
+  ![ER図](docs/image/ER.png)
+
+* ユースケース図
+
+  ![ユースケース図](docs/image/usecase.png)
+* 画面遷移図
+  ![画面遷移図](docs/image/screen_transition.png)
+
 ## 機能
 
 #### 管理者側
