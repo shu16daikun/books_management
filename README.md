@@ -45,7 +45,9 @@
 
 * ユースケース図
 
-![ユースケース図](docs/image/usecase.png)
+![ユースケース図_管理者](docs/image/usecase_manage.png)
+
+![ユースケース図_ユーザー](docs/image/usecase_user.png)
   
 * 画面遷移図
   
