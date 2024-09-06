@@ -22,11 +22,8 @@
                     name: "Live",
                     type: "LiveStream",
                     target: document.querySelector('#camera'),
-                    constraints: {
-                        facingMode: "environment",
-                        width: cameraWidth,
-                        height: cameraHeight
-                    },
+                    width: { ideal: 1280 }, // 最大1280px（HD）に設定
+                    height: { ideal: 720 }  // アスペクト比を保ちながら720pxに設定
                 },
                 decoder: {
                     readers: ["ean_reader"]
@@ -44,10 +41,10 @@
                 const code = result.codeResult.code;
                 if (code.startsWith("97")) {
                     document.getElementById('id_isbn').value = code;
+                    alert("ISBNコードが読み取られました: " + code);
                     Quagga.stop();
                     // モーダルを閉じる
                     myModal.hide();
-                    alert("ISBNコードが読み取られました: " + code);
                 }
             });
         }
