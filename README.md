@@ -36,20 +36,20 @@
 
 #### システム構成
 
-  ![システム構成図](docs/image/system_configuration.png)
+![システム構成図](docs/image/system_configuration.png)
 
 #### 設計図
 * ER図
 
-  ![ER図](docs/image/ER.png)
+![ER図](docs/image/ER.png)
 
 * ユースケース図
 
-  ![ユースケース図](docs/image/usecase.png)
+![ユースケース図](docs/image/usecase.png)
   
 * 画面遷移図
   
-  ![画面遷移図](docs/image/screen_transition.png)
+![画面遷移図](docs/image/system_transition.png)
 
 ## 機能
 
@@ -74,6 +74,8 @@
 * 図書のレンタル、返却
   
 * 図書のレビューを書く
+  
+* レンタルした図書の確認
  
 ## デモ
 
@@ -83,51 +85,51 @@
 
 図書を新規登録する画面です。デバイスカメラから本のISBNコードを読み取り、GoogleBooksAPIsを用いて図書情報を自動入力できます。
 
-  ![図書の登録](docs/image/book_create.png)
+![図書の登録](docs/image/book_create.png)
 
 * ISBNコードをスキャン
   
-  ![スキャン](docs/image/isbn_scan.png)
+![スキャン](docs/image/isbn_scan.png)
   
 * ISBNからGoogleBooksAPIsを用いて、図書情報を取得
   
-  ![API](docs/image/api.png)
+![API](docs/image/api.png)
 
 #### 登録した図書を確認する
 
 登録された図書が確認できる画面です。管理者が「情報管理」から確認できます。
 
-  ![登録図書一覧](docs/image/books_list.png)
+![登録図書一覧](docs/image/books_list.png)
 
 * 検索機能
   
   先ほど登録した本が問題なく反映されていることが確認できます。
   
-  ![登録図書一覧_検索](docs/image/books_list_search.png)
+![登録図書一覧_検索](docs/image/books_list_search.png)
 
 #### ユーザー本棚
 
 ユーザーが登録されている図書を閲覧・検索できる画面です。図書画像を選択することで詳細画面や、貸出画面に進むことができます。
 
-  ![本棚](docs/image/bookshelf.png)
+![本棚](docs/image/bookshelf.png)
 
 * 検索機能
 
   登録した図書一覧同様、ユーザー本棚でも検索ができます。
 
-  ![本棚_検索](docs/image/bookshelf_search.png)
+![本棚_検索](docs/image/bookshelf_search.png)
 
 #### 図書を借りる
 
 ユーザー本棚から選択した図書の詳細画面から、本を借りることができます。借りたい本が貸出中の場合は予約できます。
 
-  ![図書の詳細](docs/image/book_detail.png)
+![図書の詳細](docs/image/book_detail.png)
 
 * 貸出画面
 
   カレンダーの日付を選択することで、貸出日と返却予定日を設定できます。貸出・予約されている日付は赤く表示され選択できません。
 
-  ![貸出画面](docs/image/book_rent.png)
+![貸出画面](docs/image/book_rent.png)
   
 * 貸出完了画面
 
@@ -135,13 +137,13 @@
 
   ユーザは、この保管場所にある借りた図書を持ち出すことができます。
 
-  ![貸出完了画面](docs/image/book_rent_done.png)
+![貸出完了画面](docs/image/book_rent_done.png)
 
 #### 貸出状況を確認する
 
 貸出状況に応じて図書情報を閲覧できる画面です。管理者は情報管理の「貸出情報管理」から確認できます。
 
-  ![貸出状況管理画面](docs/image/lending_management.png)
+![貸出状況管理画面](docs/image/lending_management.png)
 
 #### 図書を返却する
 
@@ -149,31 +151,31 @@
 
 保管場所に借りた本を戻したら、「返却する」から返却処理ができます。
 
-  ![図書返却](docs/image/rent_list.png)
+![図書返却](docs/image/rent_list.png)
 
 * レビューを投稿する
 
   返却処理が完了すると、レビュー投稿フォームへ遷移します。投稿せずホーム画面に戻ることもできます。
 
-  ![レビュー投稿](docs/image/review.png)
+![レビュー投稿](docs/image/review.png)
 
 * レビュー投稿完了
 
   レビューを投稿すると、完了画面で内容を確認できます。
 
-  ![レビュー投稿完了](docs/image/review_done.png)
+![レビュー投稿完了](docs/image/review_done.png)
 
 * 返却処理の反映
 
   貸出情報管理画面から返却処理が正常に行われたことが確認できます。
 
-  ![返却処理確認](docs/image/return_management.png)
+![返却処理確認](docs/image/return_management.png)
 
 * レビュー情報の反映
 
   図書の詳細画面から投稿したレビューが確認できます。
 
-  ![レビュー確認](docs/image/detail_review.png)
+![レビュー確認](docs/image/detail_review.png)
 
 ## 著者
  
