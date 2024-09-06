@@ -49,7 +49,7 @@
   
 * 画面遷移図
   
-  ![画面遷移図](docs/image/screen_transition.png)
+  ![画面遷移図](docs/image/system_transition.png)
 
 ## 機能
 
