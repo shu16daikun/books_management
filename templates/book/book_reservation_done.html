@@ -31,6 +31,14 @@
             margin-bottom: 1rem;
         }
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -58,13 +66,13 @@
   <main class="flex-shrink-0">
     <div class="container mt-5 pt-5">
         {% if user.is_authenticated %}
-        <div class='main-title  border-bottom'>「{{book.title}}」を貸出予約完了</div>
-        <p>予約貸出日：{{object.reservation_checkout_date}}</p>
-        <p>予約返却予定日：{{object.reservation_scheduled_return_date}}</p>
-        <p>保管場所:{{storage}}</p>
-        <a href="{% url 'book:index' %}" class="btn btn-primary mt-3">ホーム画面へ</a>
+            <div class='main-title  border-bottom'>「{{book.title}}」を貸出予約完了</div>
+            <p>予約貸出日：{{object.reservation_checkout_date}}</p>
+            <p>予約返却予定日：{{object.reservation_scheduled_return_date}}</p>
+            <p>保管場所:{{storage}}</p>
+            <a href="{% url 'book:index' %}" class="btn btn-primary mt-3">ホーム画面へ</a>
         {% else %}
-        <a href="{% url 'book:index' %}" class="btn">ホーム画面へ</a>
+        <a href="{% url 'book:index' %}" class="btn btn-secondary">ホーム画面へ</a>
         {% endif %}
     </div>
 </main>

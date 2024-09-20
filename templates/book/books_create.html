@@ -37,16 +37,20 @@
                 Quagga.start();
             });
         
-            Quagga.onDetected(function (result) {
+            // onDetectedイベントハンドラ
+            var onDetectedHandler = function (result) {
                 const code = result.codeResult.code;
                 if (code.startsWith("97")) {
                     document.getElementById('id_isbn').value = code;
                     alert("ISBNコードが読み取られました: " + code);
                     Quagga.stop();
+                    Quagga.offDetected(onDetectedHandler); // リスナーを削除
                     // モーダルを閉じる
                     myModal.hide();
                 }
-            });
+            };
+
+            Quagga.onDetected(onDetectedHandler);
         }
 
         function fillBookInfo() {
@@ -173,6 +177,14 @@
             }
         }
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -208,7 +220,10 @@
                 <div class="form">
                     <button type="button" onclick="openCamera()" class="btn btn-secondary mb-3">ISBNをスキャン</button>
                     <button type="button" onclick="fillBookInfo()" class="btn btn-secondary mb-3">ISBNから自動入力</button>
-                    <form method="post" class="form-signin w-100 m-auto">
+                    <div class="text-danger" role="alert">
+                        *必須項目を入力してください
+                    </div>
+                    <form method="post" class="form-signin w-100 m-auto" autocomplete="off">
                         {% csrf_token %}
                         {% for field in form %}
                         <div class="form-floating mb-3 align-items-center">
@@ -219,9 +234,21 @@
                                     </label>
                                     {{ field|add_class:"form-check-input" }}
                                 </div>
+                            {% elif field.field.required %}
+                                {{ field|add_class:"form-control" }}
+                                <label for="{{ field.id_for_label }}" class="text-danger">
+                                    *{{ field.label }}
+                                </label>
+                                {% if field.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ field.errors|striptags }}
+                                </div>
+                                {% endif %}
                             {% else %}
                                 {{ field|add_class:"form-control" }}
-                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                <label for="{{ field.id_for_label }}">
+                                    {{ field.label }}
+                                </label>
                                 {% if field.errors %}
                                 <div class="invalid-feedback d-block">
                                     {{ field.errors|striptags }}
@@ -259,7 +286,7 @@
                 </div>
             </div>
             {% else %}
-            <a href="{% url 'book:index' %}" class="btn btn-primary">ホーム画面へ</a>
+            <a href="{% url 'book:index' %}" class="btn btn-secondary">ホーム画面へ</a>
             {% endif %}
         </div>
         <div class="modal fade" id="cameraModal" tabindex="-1" aria-labelledby="cameraModalLabel" aria-hidden="true">

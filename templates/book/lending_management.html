@@ -35,12 +35,19 @@
             padding: 0;
             margin: 0;
         }
-        .btn {
-            width: 40%;
-            max-width: 500px;
+        .btn1 {
+            min-width: 400px;
             margin-bottom: 10px;
         }
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -70,13 +77,13 @@
             {% if user.is_superuser %}
             <div class="main-title  border-bottom">貸出状況管理画面</div>
             <ul class="btn-list">
-                <li><a href="{% url 'book:lending_overdue' %}" class='btn btn-danger'>返却期限が過ぎているもの一覧</a></li>
-                <li><a href="{% url 'book:lending_return' %}" class="btn btn-primary">返却済みのもの一覧</a></li>
-                <li><a href="{% url 'book:lending_now' %}" class="btn btn-primary">貸出中のもの一覧</a></li>
-                <li><a href="{% url 'book:lending_cancel' %}" class="btn btn-primary">予約キャンセルされたもの一覧</a></li>
-                <li><a href="{% url 'book:lending_reservation' %}" class="btn btn-primary">予約中のもの一覧</a></li>
+                <li><a href="{% url 'book:lending_overdue' %}" class='btn btn1 btn-danger'>返却期限が過ぎているもの一覧</a></li>
+                <li><a href="{% url 'book:lending_return' %}" class="btn btn1 btn-primary">返却済みのもの一覧</a></li>
+                <li><a href="{% url 'book:lending_now' %}" class="btn btn1 btn-primary">貸出中のもの一覧</a></li>
+                <li><a href="{% url 'book:lending_cancel' %}" class="btn btn1 btn-primary">予約キャンセルされたもの一覧</a></li>
+                <li><a href="{% url 'book:lending_reservation' %}" class="btn1 btn btn-primary">予約中のもの一覧</a></li>
             </ul>
-            <a href="{% url 'book:management' %}" class="btn btn-secondary">情報管理画面へ</a>
+            <a href="{% url 'book:management' %}" class="btn btn1 btn-secondary">情報管理画面へ</a>
             {% else %}
             <a href="{% url 'book:index' %}" class="btn btn-secondary">ホーム画面へ</a>
             {% endif %}

@@ -6,7 +6,7 @@ import re
 
 class Storage(models.Model):
     floor = models.IntegerField(verbose_name="階数", null=True)
-    area = models.CharField(max_length=100, verbose_name='エリア', null=True)
+    area = models.CharField(max_length=30, verbose_name='エリア', null=True)
     def __str__(self):
         return f"{self.floor}階 {self.area}"
     class Meta:
@@ -27,13 +27,14 @@ class Books(models.Model):
         verbose_name='ISBN',
         validators=[
             RegexValidator(
-                regex=r'^\d{13}$',
-                message='ISBNは13桁の数字である必要があります。',
+                regex=r'^97\d{11}$',
+                message='ISBNは「97」で始まる13桁の数字である必要があります。',
             )
         ],
+        blank=False
     )
-    title = models.CharField(max_length=100, verbose_name='タイトル', )
-    author = models.CharField(max_length=100, verbose_name='著者' ,)
+    title = models.CharField(max_length=100, verbose_name='タイトル', blank=False)
+    author = models.CharField(max_length=100, verbose_name='著者' , blank=False)
     publisher = models.CharField(max_length=100, verbose_name='出版社', null=True, blank=True)
     publication_date = models.DateField(verbose_name='出版日', null=True, blank=True)
     category = models.CharField(max_length=100, verbose_name='カテゴリー', null=True, blank=True)
@@ -41,7 +42,7 @@ class Books(models.Model):
     price = models.IntegerField(verbose_name='価格', null=True, blank=True)
     edition = models.IntegerField(verbose_name='版数', null=True, blank=True)
     purchase_date = models.DateField(verbose_name='購入日',null=True, blank=True)
-    storage = models.ForeignKey(Storage, on_delete=models.SET_NULL,verbose_name='保管場所' ,null=True)
+    storage = models.ForeignKey(Storage, on_delete=models.SET_NULL,verbose_name='保管場所' ,null=True, blank=False)
     is_lend_out = models.BooleanField(
         verbose_name=('貸出状況'),
         default=False

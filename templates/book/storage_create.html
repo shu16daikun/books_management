@@ -62,6 +62,14 @@
             max-width: 500px;
         }
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -139,7 +147,7 @@
             </div>
         {% endif %}
         {% else %}
-        <a href="{% url 'book:index' %}" class="btn">ホーム画面へ</a>
+        <a href="{% url 'book:index' %}" class="btn btn-secondary">ホーム画面へ</a>
         {% endif %}
     </div>
 </main>

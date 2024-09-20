@@ -41,7 +41,6 @@
         /* book_imgの高さを調整して横長にならないようにする */
         .book_img {
             width: 100%;
-            height: calc(100vh - 10rem); /* 画像の高さをメインセクションいっぱいに設定 */
             object-fit: cover; /* 画像のアスペクト比を維持しつつ、領域を埋める */
         }
         /* book-detailsのスタイル調整 */
@@ -51,7 +50,6 @@
             justify-content: center;
             /* 必要に応じてパディングやマージンを追加 */
         }
-        
         .status {
             border-radius: 0.25rem; /* 貸出状況の背景色をラウンドさせる場合 */
         }
@@ -80,8 +78,22 @@
         /* 追加のマージン調整が必要な場合は、以下のように個別に設定できます */
         .book-info {
             margin-bottom: 1.5rem; /* book-infoとレビュー間の間隔 */
+            width:40%;
+        }
+        .book-d{
+            width:60%;
+            padding-left: 1rem; /* 左マージンを設定 */
+            padding-right: 1rem; /* 右マージンを設定 */
         }
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -122,7 +134,7 @@
                         <img src="{% static 'images/no_image.jpg' %}" alt="{{ book.title }}" class="book_img">
                     {% endif %}
                 </div>
-                <div class="col-md-8  mx-auto">
+                <div class="book-d">
                     <div class="book-details d-flex ">
                         <!-- 貸出状況 -->
                         <div class="d-flex flex-column align-items-center">

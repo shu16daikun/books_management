@@ -33,7 +33,14 @@
             margin-bottom: 1rem;
         }
         .table-container {
-            margin-top: 2rem;
+            position: relative;
+            width: 100%;
+            overflow: hidden; /* スクロールバーを隠す */
+            cursor: pointer; /* テーブルがクリック可能であることを示す */
+        }
+        
+        .table-container .table {
+            width: 100%; /* テーブルの幅を設定 */
         }
         .pagination {
             margin-top: 1rem;
@@ -63,6 +70,36 @@
             height: 24px;
         }
     </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.table-container');
+        
+            container.addEventListener('mousedown', function(e) {
+                let startX = e.pageX;
+                let scrollLeft = container.scrollLeft;
+        
+                function scroll(e) {
+                    const x = e.pageX;
+                    const walk = (x - startX) * 3; // スクロールの速度調整
+                    container.scrollLeft = scrollLeft - walk;
+                }
+        
+                function stopScroll() {
+                    document.removeEventListener('mousemove', scroll);
+                    document.removeEventListener('mouseup', stopScroll);
+                }
+        
+                document.addEventListener('mousemove', scroll);
+                document.addEventListener('mouseup', stopScroll);
+            });
+        });
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+        </script>
 </head>
 <body class="d-flex flex-column h-100">
     <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
@@ -110,25 +147,25 @@
                 <a href="{% url 'book:books_list' %}" class="text-danger"> 保管場所が登録されていない本があります</a>
             </div>
             {% endif %}
-            <div class="table-responsive">
+            <div class="table-container">
                 <table class="table table-striped table-bordered">
                     {% if object_list %}
                     <thead class='table-dark'>
                         <tr>
-                            <th>表紙画像</th>
-                            <th>タイトル</th>
-                            <th>ISBN</th>
-                            <th>著者</th>
-                            <th>出版社</th>
-                            <th>出版日</th>
-                            <th>カテゴリー</th>
-                            <th>価格</th>
-                            <th>版数</th>
-                            <th>購入日</th>
-                            <th>保管場所</th>
-                            <th>貸出状況</th>
-                            <th>登録情報修正</th>
-                            <th>削除</th>
+                            <th style="width:70px; min-width:70px;">表紙画像</th>
+                            <th style="width:150px; min-width:130px;">タイトル</th>
+                            <th style="width:150px; min-width:130px;">ISBN</th>
+                            <th style="width:150px; min-width:130px;">著者</th>
+                            <th style="width:70px; min-width:70px;">出版社</th>
+                            <th style="width:70px; min-width:70px;">出版日</th>
+                            <th style="width:70px; min-width:70px;">カテゴリー</th>
+                            <th style="width:70px; min-width:70px;">価格</th>
+                            <th style="width:70px; min-width:70px;">版数</th>
+                            <th style="width:70px; min-width:70px;">購入日</th>
+                            <th style="width:70px; min-width:70px;">保管場所</th>
+                            <th style="width:70px; min-width:70px;">貸出状況</th>
+                            <th style="width:70px; min-width:70px;">登録情報修正</th>
+                            <th style="width:70px; min-width:70px;">削除</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -162,7 +199,6 @@
                                     <a href="{% url 'book:books_delete' book.pk %}" class="btn btn-danger btn-sm">削除</a>
                                 {% endif %}
                             </td>
-                            <td></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -201,7 +237,7 @@
                 </ul>
             </nav>
             {% else %}
-            <a href="{% url 'book:index' %}" class="btn btn-primary">ホーム画面へ</a>
+            <a href="{% url 'book:index' %}" class="btn btn-secondary">ホーム画面へ</a>
             {% endif %}
         </div>
     </main>

@@ -4,7 +4,7 @@ from django.contrib.auth.models import (BaseUserManager,
                                         PermissionsMixin)
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
-import re
+from project import settings
 
 class UserManager(BaseUserManager):
     def _create_user(self, username, email, password, **extra_fields):
@@ -88,3 +88,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     def __str__(self):
         return self.username
+
+"""ユーザー別にトークンを作成"""
+class UserToken(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    token = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.token}"

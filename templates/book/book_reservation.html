@@ -40,6 +40,14 @@
             margin-bottom: 1rem;
         }
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -66,9 +74,9 @@
     </header>
   <main class="flex-shrink-0">
     <div class="container mt-5 pt-5">
-        {% if user.is_authenticated %}
+        {% if user.is_authenticated and book.is_lend_out %}
         <div class="d-flex justify-content-end">
-            <a href="{% url 'book:book_detail' book.pk %}" class="btn btn-secondary mb-3">戻る</a>
+            <a href="{% url 'book:book_detail' book.pk %}" class="btn btn-secondary mb-3">本の詳細へ戻る</a>
         </div>
         <div class='main-title  border-bottom'>「{{book.title}}」を予約する</div>
         <form id='rent-form' method="post" action="{% url 'book:book_reservation' book.pk %}">
@@ -110,24 +118,43 @@
                     },
                     dayClick: function(date, jsEvent, view) {
                         var formattedDate = date.format('YYYY-MM-DD');
-                        
+        
                         if (action === 'checkout') {
                             if (unavailableDates.includes(formattedDate)) {
                                 alert('この日は借りられません');
                             } else {
+                                checkoutDate = formattedDate; // 貸出日を保存
                                 document.getElementById('checkout_date').value = formattedDate;
                                 action = 'return'; // 次回のクリックは返却予定日の設定
-                                alert('貸出日を設定しました: ' + formattedDate +'次は返却予定日を設定してください。');
+                                alert('貸出日を設定しました: ' + formattedDate + ' 次は返却予定日を設定してください。');
                             }
                         } else if (action === 'return') {
                             if (unavailableDates.includes(formattedDate)) {
                                 alert('この日は借りられません');
-                            } else {
+                            } else if (moment(formattedDate).isBefore(checkoutDate) && formattedDate !== checkoutDate) { // 貸出日より過去の日付は設定できないが、同日なら許可
+                                alert('返却予定日は貸出日より未来の日付にしてください。');
+                            } else if (moment(formattedDate).isAfter(checkoutDate)) { // unavailableDatesをcheckout_dateとscheduled_return_dateの間に設定できない
+                                var datesBetween = [];
+                                var start = moment(checkoutDate);
+                                var end = moment(formattedDate);
+                                while (start.isBefore(end)) {
+                                    start.add(1, 'days');
+                                    datesBetween.push(start.format('YYYY-MM-DD'));
+                                }
+                                if (datesBetween.some(date => unavailableDates.includes(date))) {
+                                    alert('貸出日と返却予定日の間には借りられない日があります。');
+                                } else {
+                                    document.getElementById('scheduled_return_date').value = formattedDate;
+                                    action = 'checkout'; // リセット
+                                    alert('返却予定日を設定しました: ' + formattedDate);
+                                    document.getElementById('rent-form').submit();
+                                }
+                            } else if (formattedDate === checkoutDate) { // 貸出日と同じ場合は許可
                                 document.getElementById('scheduled_return_date').value = formattedDate;
                                 action = 'checkout'; // リセット
                                 alert('返却予定日を設定しました: ' + formattedDate);
+                                document.getElementById('rent-form').submit();
                             }
-                            document.getElementById('rent-form').submit();
                         }
                     }
                 });

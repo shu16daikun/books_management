@@ -51,9 +51,17 @@
 </head>
 <body class="d-flex align-items-center py-4 bg-body-tertiary">
     <main class="form-signin w-100 m-auto">
-        <form method="post">
+        <form method="post" autocomplete="off">
             {% csrf_token %}
             <h1 class="h3 mb-3 fw-normal">ログイン</h1>
+
+            {% if messages %}
+            <div class="alert alert-danger" role="alert">
+                {% for message in messages %}
+                    {{ message }}
+                {% endfor %}
+            </div>
+            {% endif %}
 
             {% for field in form %}
             <div class="form-floating mb-3">

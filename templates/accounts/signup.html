@@ -47,13 +47,23 @@
             margin-top: 10px;
         }
     </style>
+    <script>
+        window.onload = function() {
+            // フォームが存在すればリセット
+            var forms = document.getElementsByTagName('form');
+            if (forms.length > 0) {
+                forms[0].reset();  // 最初のフォームをリセット
+            }
+        };
+        
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
   <main class="form-signin w-100 m-auto">
-    <form method="post">
+    <form method="post" autocomplete="off" onsubmit="disableSubmitButton()">
         {% csrf_token %}
         <h1 class="h3 mb-3 fw-normal">アカウント作成</h1>
-
+        
         {% for field in form %}
         <div class="form-floating mb-3">
             {{ field|add_class:"form-control" }}
@@ -62,7 +72,7 @@
             <div class="invalid-feedback d-block">
                 <ul>
                     {% for field, errors in form.errors.items %}
-                        <li>{{ field }}: {{ errors|striptags }}</li>
+                        <li>{{ errors|striptags }}</li>
                     {% endfor %}
                 </ul>
             </div>
@@ -70,10 +80,18 @@
         </div>
         {% endfor %}
 
-        <button class="btn btn-primary w-100 py-2" type="submit">作成</button>
+        <button id="submit-btn" class="btn btn-primary w-100 py-2" type="submit">作成</button>
         <a href="{% url 'accounts:index' %}" class="w-100 btn btn-secondary mt-2">ホーム画面へ</a>
     </form>
-</main>
+  </main>
+  <script>
+    function disableSubmitButton() {
+        // サインアップボタンを無効化する
+        const submitButton = document.getElementById("submit-btn");
+        submitButton.disabled = true;
+        submitButton.textContent = "送信中...";  // ボタンのテキストを変更（オプション）
+    }
+  </script>
 
 
     <footer class="footer mt-auto py-3 bg-body-tertiary">

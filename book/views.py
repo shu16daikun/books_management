@@ -1,20 +1,33 @@
-from django.forms import BaseModelForm
 from django.shortcuts import render, get_object_or_404, redirect
-from django.views.generic import View, TemplateView, DetailView, ListView, CreateView, DeleteView, UpdateView
+from django.views.generic import TemplateView, DetailView, ListView, CreateView, DeleteView, UpdateView
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
-from django.utils import timezone
-from django.utils.http import urlencode
+from django.http import  HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpResponseForbidden
 from django.contrib import messages
-from django.http import HttpResponseBadRequest
+from django.contrib.auth.mixins import LoginRequiredMixin
 from datetime import datetime, timedelta
 from .forms import *
 from .utils import get_book_info
 from .models import *
+from accounts.models import UserToken
+from urllib.parse import urlparse
+import secrets
 import json
-import os
-from django.conf import settings
+
+def generate_user_token(user):
+    # トークンを生成し、データベースに保存
+    token = secrets.token_urlsafe()  # URLセーフなトークンを生成
+    UserToken.objects.update_or_create(user=user, defaults={'token': token})
+    return token
+
+def get_user_token(user):
+    # ユーザーに関連付けられたトークンを取得
+    try:
+        user_token = UserToken.objects.get(user=user)
+        return user_token.token
+    except UserToken.DoesNotExist:
+        return None  # トークンが存在しない場合は None を返す
 
 class IndexView(TemplateView):
     """ ホームビュー """
@@ -41,8 +54,9 @@ class IndexView(TemplateView):
             context['not_returned'] = not_returned
         return context
 
-class InformationView(TemplateView):
+class InformationView(LoginRequiredMixin, TemplateView):
     template_name = "book/information.html"
+    login_url = 'accounts:login' 
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -53,8 +67,9 @@ class InformationView(TemplateView):
             context['no_storage'] = no_storage
         return context
 
-class StorageListView(ListView):
+class StorageListView(LoginRequiredMixin, ListView):
     template_name = "book/storage_list.html"
+    login_url = 'accounts:login' 
     model = Storage
     ordering = ['floor', 'area']
     def get_context_data(self, **kwargs):
@@ -71,26 +86,37 @@ class StorageListView(ListView):
             context['storage_usage'] = storage_usage
         return context
 
-class StorageCreateView(CreateView):
+class StorageCreateView(LoginRequiredMixin, CreateView):
     model = Storage
     template_name = "book/storage_create.html"
+    login_url = 'accounts:login' 
     form_class = StorageForm
     success_url = reverse_lazy('book:storage_list')
     def form_valid(self, form):
         return super().form_valid(form)
 
-class StorageUpdateView(UpdateView):
+class StorageUpdateView(LoginRequiredMixin, UpdateView):
     model = Storage
     fields = '__all__'
     template_name = 'book/storage_update.html'
+    login_url = 'accounts:login' 
     success_url = reverse_lazy('book:storage_list')
     def form_valid(self, form):
         return super().form_valid(form)
 
-class StorageDeleteView(DeleteView):
+class StorageDeleteView(LoginRequiredMixin, DeleteView):
     model = Storage
     template_name = "book/storage_delete.html"
+    login_url = 'accounts:login' 
     success_url = reverse_lazy('book:storage_list')
+
+    def get_object(self, queryset=None):
+        # オブジェクトを取得
+        obj = super().get_object(queryset)
+        if not obj:
+            messages("このオブジェクトは既に削除済みです")
+        return obj
+    
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -105,41 +131,73 @@ class StorageDeleteView(DeleteView):
             context['storage_usage'] = storage_usage
         return context
 
-class BookManagementListView(ListView):
+class BookManagementListView(LoginRequiredMixin, ListView):
     template_name = "book/books_list.html"
+    login_url = 'accounts:login' 
     model = Books
     paginate_by = 20
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().order_by('id')
         query = self.request.GET.get('query')
         if query:
-            # モデルのフィールドを取得
-            book_fields = [field.name for field in Books._meta.get_fields() if field.get_internal_type() in ['CharField', 'TextField', 'BooleanField']]
-            # Storageモデルのフィールドを取得
+            book_fields = [field.name for field in Books._meta.get_fields() if field.get_internal_type() in ['CharField', 'TextField', 'IntegerField', 'DateField', 'BooleanField']]
             storage_fields = ['storage__floor', 'storage__area']
-            # OR条件を作成
+            
             q_objects = Q()
+            q_objects_floor = Q()
+            q_objects_area = Q()
+            
             for field in book_fields:
-                if field == 'is_lend_out':
+                if field == 'publication_date' or field == 'purchase_date':
+                    if '年' in query and '月' in query and '日' in query:
+                        try:
+                            year, month, day = query.replace('年', '-').replace('月', '-').replace('日', '').split('-')
+                            formatted_date = f"{year}-{int(month):02}-{int(day):02}"
+                            formatted_date = datetime.strptime(formatted_date, '%Y-%m-%d').date()
+                            q_objects |= Q(**{f"{field}__exact": formatted_date})
+                        except ValueError as e:
+                            # エラーメッセージを出力して処理を続行
+                            print(f"Invalid date format: {query}. Error: {e}")
+                elif field == 'price' or field == 'edition':
+                    try:
+                        num = int(query)
+                        q_objects |= Q(**{f"{field}": num})
+                    except ValueError as e:
+                        # エラーメッセージを出力して処理を続行
+                        print(f"Invalid number format: {query}. Error: {e}")
+                elif field == 'is_lend_out':
                     if '貸出中' in query:
                         q_objects |= Q(is_lend_out=True)
                     elif '貸出可' in query:
                         q_objects |= Q(is_lend_out=False)
                 else:
                     q_objects |= Q(**{f"{field}__icontains": query})
+
             for field in storage_fields:
-                if field == 'storage__floor':
-                    try:
-                        # '階'を含む部分を処理
-                        if '階' in query:
-                            floor = int(query.split('階')[0].strip())
-                            q_objects |= Q(**{f"{field}": floor})
-                    except ValueError:
-                        pass
-                elif field == 'storage__area':
-                    q_objects |= Q(**{f"{field}__icontains": query})
-            # クエリセットをフィルタリング
-            queryset = queryset.filter(q_objects)
+                if '階' in query:
+                    parts = query.split('階', 1)
+                    if len(parts) > 1:
+                        try:
+                            floor = int(parts[0].strip())
+                            area = parts[1].strip()
+                            
+                            q_objects_floor = Q(**{"storage__floor": floor})
+                            
+                            if area == "":
+                                q_objects |= q_objects_floor
+                            else:
+                                q_objects_area = Q(**{"storage__area__icontains": area})
+                        except ValueError as e:
+                            # エラーメッセージを出力して処理を続行
+                            print(f"Invalid floor format: {query}. Error: {e}")
+                else:
+                    q_objects |= Q(**{f"storage__area": query})
+
+            # AND条件を & で結びつける
+            if q_objects_floor and q_objects_area:
+                queryset = queryset.filter(q_objects_floor & q_objects_area)
+            else:
+                queryset = queryset.filter(q_objects).order_by('id')
         return queryset
     
     def get_context_data(self, **kwargs):
@@ -158,10 +216,11 @@ class BookManagementListView(ListView):
             context['book_usage'] = book_usage
         return context
 
-class BookCreateView(CreateView):
+class BookCreateView(LoginRequiredMixin, CreateView):
     model = Books
     form_class = BookForm
     template_name = 'book/books_create.html'
+    login_url = 'accounts:login' 
     success_url = reverse_lazy('book:books_list')
 
     def form_valid(self, form):
@@ -174,7 +233,7 @@ class BookCreateView(CreateView):
             else:
                 return self.render_to_response(self.get_context_data(form=form))
         return super().form_valid(form)
-
+    
 def retrieve_book(request):
     if request.method == 'POST':
         isbn = request.POST.get('isbn')
@@ -187,24 +246,35 @@ def retrieve_book(request):
             return JsonResponse({'error': '本の情報が見つかりませんでした。'})
     return JsonResponse({'error': '無効なリクエストです。'})
 
-class BookDeleteView(DeleteView):
+class BookDeleteView(LoginRequiredMixin, DeleteView):
     model = Books
     template_name = "book/books_delete.html"
+    login_url = 'accounts:login' 
     success_url = reverse_lazy('book:books_list')
 
-class BookUpdateView(UpdateView):
+    def get_object(self, queryset=None):
+        # オブジェクトを取得
+        obj = super().get_object(queryset)
+        if not obj:
+            messages("このオブジェクトは既に削除済みです")
+        return obj
+
+class BookUpdateView(LoginRequiredMixin, UpdateView):
     model = Books
     fields = '__all__'
     template_name = 'book/books_update.html'
+    login_url = 'accounts:login' 
     success_url = reverse_lazy('book:books_list')
     def form_valid(self, form):
         return super().form_valid(form)
 
-class LendingManagementView(TemplateView):
+class LendingManagementView(LoginRequiredMixin, TemplateView):
     template_name = "book/lending_management.html"
+    login_url = 'accounts:login' 
 
-class LendingReservationView(ListView):
+class LendingReservationView(LoginRequiredMixin, ListView):
     template_name = "book/lending_reservation.html"
+    login_url = 'accounts:login' 
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
@@ -213,9 +283,18 @@ class LendingReservationView(ListView):
             reservation_checkout_date__isnull=False,
             cancel_date__isnull=True
         ).order_by('reservation_checkout_date')
+    
+    def get_context_data(self, **kwargs):
+        user = self.request.user
+        context = super().get_context_data(**kwargs)
+        if user.is_authenticated:
+            today = datetime.today().date()
+            context['today'] = today
+        return context
 
-class LendingCancelView(ListView):
+class LendingCancelView(LoginRequiredMixin, ListView):
     template_name = "book/lending_cancel.html"
+    login_url = 'accounts:login' 
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
@@ -225,8 +304,9 @@ class LendingCancelView(ListView):
             cancel_date__isnull=False
         ).order_by('-cancel_date')
     
-class LendingNowView(ListView):
+class LendingNowView(LoginRequiredMixin, ListView):
     template_name = "book/lending_now.html"
+    login_url = 'accounts:login' 
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
@@ -244,8 +324,9 @@ class LendingNowView(ListView):
             context['today'] = today
         return context
 
-class LendingReturnView(ListView):
+class LendingReturnView(LoginRequiredMixin, ListView):
     template_name = "book/lending_return.html"
+    login_url = 'accounts:login' 
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
@@ -254,8 +335,9 @@ class LendingReturnView(ListView):
             return_date__isnull=False
         ).order_by('-return_date')
 
-class LendingOverdueView(ListView):
+class LendingOverdueView(LoginRequiredMixin, ListView):
     template_name = "book/lending_Overdue.html"
+    login_url = 'accounts:login' 
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
@@ -266,17 +348,27 @@ class LendingOverdueView(ListView):
             scheduled_return_date__lt=today
         ).order_by('scheduled_return_date')
 
-class ReviewListView(ListView):
+class ReviewListView(LoginRequiredMixin, ListView):
     template_name = "book/reviews_list.html"
+    login_url = 'accounts:login' 
     model = Review
     context_object_name = 'reviews'
     paginate_by = 30
     ordering = ['-pk']
 
-class ReviewDeleteView(DeleteView):
+class ReviewDeleteView(LoginRequiredMixin, DeleteView):
     model = Review
     template_name = "book/reviews_delete.html"
+    login_url = 'accounts:login' 
     success_url = reverse_lazy('book:reviews_list')
+
+    def get_object(self, queryset=None):
+        # オブジェクトを取得
+        obj = super().get_object(queryset)
+        if not obj:
+            messages("このオブジェクトは既に削除済みです")
+        return obj
+
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -284,13 +376,17 @@ class ReviewDeleteView(DeleteView):
             context['object_name'] = f'{self.object.user}-「{self.object.books.title}」-"{self.object.comment}"'
         return context
 
-class BookshelfView(ListView):
+class BookshelfView(LoginRequiredMixin, ListView):
     template_name = "book/bookshelf.html"
+    login_url = 'accounts:login' 
     model = Books
     paginate_by = 100
+    def get_queryset(self):
+        return Books.objects.order_by('id') 
 
-class BookSearchView(ListView):
+class BookSearchView(LoginRequiredMixin, ListView):
     template_name = "book/book_search.html"
+    login_url = 'accounts:login' 
     model = Books
     paginate_by = 100
     def get_queryset(self):
@@ -298,11 +394,28 @@ class BookSearchView(ListView):
         query = self.request.GET.get('query')
         if query:
             # モデルのフィールドを取得
-            book_fields = [field.name for field in Books._meta.get_fields() if field.get_internal_type() in ['CharField', 'TextField', 'BooleanField']]
+            book_fields = [field.name for field in Books._meta.get_fields() if field.get_internal_type() in ['CharField', 'TextField', 'IntegerField', 'DateField', 'BooleanField']]
             # OR条件を作成
             q_objects = Q()
             for field in book_fields:
-                if field == 'is_lend_out':
+                if field == 'publication_date' or field == 'purchase_date':
+                    if '年' in query and '月' in query and '日' in query:
+                        try:
+                            year, month, day = query.replace('年', '-').replace('月', '-').replace('日', '').split('-')
+                            formatted_date = f"{year}-{int(month):02}-{int(day):02}"
+                            formatted_date = datetime.strptime(formatted_date, '%Y-%m-%d').date()
+                            q_objects |= Q(**{f"{field}__exact": formatted_date})
+                        except ValueError as e:
+                            # エラーメッセージを出力して処理を続行
+                            print(f"Invalid date format: {query}. Error: {e}")
+                elif field == 'price' or field == 'edition':
+                    try:
+                        num = int(query)
+                        q_objects |= Q(**{f"{field}": num})
+                    except ValueError as e:
+                        # エラーメッセージを出力して処理を続行
+                        print(f"Invalid number format: {query}. Error: {e}")
+                elif field == 'is_lend_out':
                     if '貸出中' in query:
                         q_objects |= Q(is_lend_out=True)
                     elif '貸出可' in query:
@@ -310,11 +423,12 @@ class BookSearchView(ListView):
                 else:
                     q_objects |= Q(**{f"{field}__icontains": query})
             # クエリセットをフィルタリング
-            queryset = queryset.filter(q_objects)
+            queryset = queryset.filter(q_objects).order_by('id') 
         return queryset
 
-class BookDetailView(DetailView):
+class BookDetailView(LoginRequiredMixin, DetailView):
     template_name = "book/book_detail.html"
+    login_url = 'accounts:login' 
     model = Books
     context_object_name = 'book'
     def get_context_data(self, **kwargs):
@@ -325,10 +439,12 @@ class BookDetailView(DetailView):
             context['reviews'] = Review.objects.filter(books=book)
         return context
 
-class BookReservationView(CreateView):
+class BookReservationView(LoginRequiredMixin, CreateView):
     model = Lending
     form_class = BookReservationForm
     template_name = 'book/book_reservation.html'
+    login_url = 'accounts:login'
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['initial']['books'] = get_object_or_404(Books, pk=self.kwargs['book_pk'])
@@ -372,9 +488,6 @@ class BookReservationView(CreateView):
             book = get_object_or_404(Books, pk=book_pk)
             today = datetime.today().date()
             end_date = today + timedelta(days=35)
-            print("Book:", book)
-            print("Today:", today)
-            print("End date:", end_date)
             lendings = Lending.objects.filter(
                 books=book, 
                 reservation_checkout_date__lte=end_date
@@ -382,7 +495,6 @@ class BookReservationView(CreateView):
                 books=book, 
                 checkout_date__lte=end_date
             )
-            print("Lendings:", lendings)  # デバッグ出力
             # 貸出不可能な日付をリストに追加
             unavailable_dates = []
             for lending in lendings:
@@ -403,11 +515,44 @@ class BookReservationView(CreateView):
         return context
     
     def get_success_url(self):
-        return reverse('book:book_reservation_done', kwargs={'book_pk': self.kwargs['book_pk'], 'pk': self.object.pk})
+        # 許可されたリファラURL
+        token = secrets.token_urlsafe()
+        self.request.session['reservation_token'] = token  # トークンをセッションに保存
+        return reverse('book:book_reservation_done', kwargs={'book_pk': self.kwargs['book_pk'], 'pk': self.object.pk, 'token': token})
 
-class BookReservationDoneView(DetailView):
+class BookReservationDoneView(LoginRequiredMixin, DetailView):
     template_name = "book/book_reservation_done.html"
+    login_url = 'accounts:login' 
     model = Lending
+
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        session_token = request.session.get('reservation_token')
+        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
+        url_token = kwargs.get('token')
+
+        if not db_token:
+            generate_user_token(user)  # 新しいトークンを生成
+            db_token = get_user_token(user)  # 生成したトークンを再度取得
+
+        # db_tokenがNoneでないことを確認
+        if db_token is not None:
+            # UserTokenを取得
+            user_token = UserToken.objects.filter(token=db_token).first()
+            if user_token is None or user.id != user_token.user_id:
+                print('a')
+                return HttpResponseForbidden("不正なアクセスです。")
+        else:
+            print('b')
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        if not session_token or session_token != url_token:
+            print('c')
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        return super().dispatch(request, *args, **kwargs)
+
+
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -423,10 +568,11 @@ class BookReservationDoneView(DetailView):
             context['storage'] = storage
         return context
 
-class BookRentView(CreateView):
+class BookRentView(LoginRequiredMixin, CreateView):
     model = Lending
     form_class = BookRentForm
     template_name = 'book/book_rent.html'
+    login_url = 'accounts:login' 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['initial']['books'] = get_object_or_404(Books, pk=self.kwargs['book_pk'])
@@ -475,10 +621,6 @@ class BookRentView(CreateView):
             today = datetime.today().date()
             # 今日から5週間の範囲を設定
             end_date = today + timedelta(days=35)
-            # デバッグ用にフィルタ条件を確認
-            print("Book:", book)
-            print("Today:", today)
-            print("End date:", end_date)
 
             # 指定された期間内の Lending オブジェクトを取得
             lendings = Lending.objects.filter(
@@ -488,7 +630,6 @@ class BookRentView(CreateView):
                 books=book, 
                 checkout_date__lte=end_date
             )
-            print("Lendings:", lendings)  # デバッグ出力
             # 貸出不可能な日付をリストに追加
             unavailable_dates = []
             for lending in lendings:
@@ -509,11 +650,44 @@ class BookRentView(CreateView):
         return context
     
     def get_success_url(self):
-        return reverse('book:book_rent_done', kwargs={'book_pk': self.kwargs['book_pk'], 'pk': self.object.pk})
+        # 許可されたリファラURL
+        token = secrets.token_urlsafe()
+        self.request.session['rent_token'] = token  # トークンをセッションに保存
+        return reverse('book:book_rent_done', kwargs={'book_pk': self.kwargs['book_pk'], 'pk': self.object.pk, 'token': token})
 
-class BookRentDoneView(DetailView):
+
+class BookRentDoneView(LoginRequiredMixin, DetailView):
     template_name = "book/book_rent_done.html"
+    login_url = 'accounts:login' 
     model = Lending
+
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        session_token = request.session.get('rent_token')
+        url_token = kwargs.get('token')
+        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
+        
+        if not db_token:
+            generate_user_token(user)  # 新しいトークンを生成
+            db_token = get_user_token(user)  # 生成したトークンを再度取得
+        # db_tokenがNoneでないことを確認
+        if db_token is not None:
+            # UserTokenを取得
+            user_token = UserToken.objects.filter(token=db_token).first()
+            if user_token is None or user.id != user_token.user_id:
+                print('a')
+                return HttpResponseForbidden("不正なアクセスです。")
+        else:
+            print('b')
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        if not session_token or session_token != url_token:
+            print('c')
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        return super().dispatch(request, *args, **kwargs)
+
+
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -529,9 +703,11 @@ class BookRentDoneView(DetailView):
             context['storage'] = storage
         return context
 
-class RentListView(ListView):
+class RentListView(LoginRequiredMixin, ListView):
     template_name = "book/rent_list.html"
+    login_url = 'accounts:login' 
     model = Lending
+
     def get_queryset(self):
         user = self.request.user
         return Lending.objects.filter(user=user)
@@ -577,12 +753,37 @@ class RentListView(ListView):
             context['renting_lendings'] = renting_lendings
             context['reserved_lendings'] = reserved_lendings
             context['today'] = today
+            
         return context
 
-class ReturnBookView(UpdateView):
+class ReturnBookView(LoginRequiredMixin, UpdateView):
     model = Lending
     fields = ['return_date']
     template_name = 'book/return_book.html'
+    login_url = 'accounts:login' 
+
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        session_token = request.session.get('return_token')
+        url_token = kwargs.get('token')
+        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
+        
+        if not db_token:
+            generate_user_token(user)  # 新しいトークンを生成
+            db_token = get_user_token(user)  # 生成したトークンを再度取得
+        # db_tokenがNoneでないことを確認
+        if db_token is not None:
+            # UserTokenを取得
+            user_token = UserToken.objects.filter(token=db_token).first()
+            if user_token is None or user.id != user_token.user_id:
+                print('a')
+                return HttpResponseForbidden("不正なアクセスです。")
+        else:
+            print('b')
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         # 返却日を今日の日付に設定
         today = datetime.today().date()
@@ -611,12 +812,41 @@ class ReturnBookView(UpdateView):
             context['book'] = book
         return context
     def get_success_url(self):
-        return reverse('book:review', kwargs={'pk': self.object.pk})
+        # 許可されたリファラURL
+        token = secrets.token_urlsafe()
+        self.request.session['return_token'] = token  # トークンをセッションに保存
+        return reverse('book:review', kwargs={'pk': self.object.pk, 'token': token})
 
-class ReviewView(CreateView):
+class ReviewView(LoginRequiredMixin, CreateView):
     model = Review
     form_class = ReviewForm
     template_name = 'book/review.html'
+    login_url = 'accounts:login' 
+
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        session_token = request.session.get('return_token')
+        url_token = kwargs.get('token')
+        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
+        
+        if not db_token:
+            generate_user_token(user)  # 新しいトークンを生成
+            db_token = get_user_token(user)  # 生成したトークンを再度取得
+        # db_tokenがNoneでないことを確認
+        if db_token is not None:
+            # UserTokenを取得
+            user_token = UserToken.objects.filter(token=db_token).first()
+            if user_token is None or user.id != user_token.user_id:
+                print('a')
+                return HttpResponseForbidden("不正なアクセスです。")
+        else:
+            print('b')
+            return HttpResponseForbidden("不正なアクセスです。")
+        if not session_token or session_token != url_token:
+            print('c')
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        return super().dispatch(request, *args, **kwargs)
     def form_valid(self, form):
         lending = get_object_or_404(Lending, pk=self.kwargs['pk'])
         form.instance.books = lending.books
@@ -633,12 +863,41 @@ class ReviewView(CreateView):
         return context
 
     def get_success_url(self):
-        return reverse('book:review_done', kwargs={'pk': self.object.pk})
+        # 許可されたリファラURL
+        token = secrets.token_urlsafe()
+        self.request.session['review_token'] = token  # トークンをセッションに保存
+        return reverse('book:review_done', kwargs={'pk': self.object.pk, 'token': token})
 
 
-class ReviewDoneView(DetailView):
+class ReviewDoneView(LoginRequiredMixin, DetailView):
     template_name = "book/review_done.html"
+    login_url = 'accounts:login' 
     model = Review
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        session_token = request.session.get('review_token')
+        url_token = kwargs.get('token')
+        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
+        
+        if not db_token:
+            generate_user_token(user)  # 新しいトークンを生成
+            db_token = get_user_token(user)  # 生成したトークンを再度取得
+        # db_tokenがNoneでないことを確認
+        if db_token is not None:
+            # UserTokenを取得
+            user_token = UserToken.objects.filter(token=db_token).first()
+            if user_token is None or user.id != user_token.user_id:
+                print('a')
+                return HttpResponseForbidden("不正なアクセスです。")
+        else:
+            print('b')
+            return HttpResponseForbidden("不正なアクセスです。")
+        if not session_token or session_token != url_token:
+            print('c')
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -651,11 +910,33 @@ class ReviewDoneView(DetailView):
             context['comment'] = review.comment
         return context
 
-class CancelReservationView(UpdateView):
+class CancelReservationView(LoginRequiredMixin, UpdateView):
     model = Lending
     fields = ['cancel_date']
     template_name = 'book/cancel_reservation.html'
+    login_url = 'accounts:login' 
     success_url = reverse_lazy('book:rent_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
+        
+        if not db_token:
+            generate_user_token(user)  # 新しいトークンを生成
+            db_token = get_user_token(user)  # 生成したトークンを再度取得
+        # db_tokenがNoneでないことを確認
+        if db_token is not None:
+            # UserTokenを取得
+            user_token = UserToken.objects.filter(token=db_token).first()
+            if user_token is None or user.id != user_token.user_id:
+                print('a')
+                return HttpResponseForbidden("不正なアクセスです。")
+        else:
+            print('b')
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         # 返却日を今日の日付に設定
         today = datetime.today().date()

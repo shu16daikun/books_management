@@ -54,6 +54,14 @@
             margin-bottom: 1rem; /* 必要に応じて調整 */
         }
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -84,20 +92,35 @@
         <div class='main-title  border-bottom'>本情報の変更</div>
         <div class="form-container">
             <div class="form">
-                <form method="post" class="form-signin w-100 m-auto">
+                <div class="text-danger" role="alert">
+                    *必須項目を入力してください
+                </div>
+                <form method="post" class="form-signin w-100 m-auto" autocomplete="off">
                     {% csrf_token %}
                     {% for field in form %}
                     <div class="form-floating mb-3 align-items-center">
                         {% if field.field.widget.input_type == 'checkbox' %}
                             <div class="form-check">
                                 <label class="form-check-label" for="{{ field.id_for_label }}">
-                                    {{ field.label }}（チェックがついていると貸出中）
+                                    {{ field.label }}
                                 </label>
                                 {{ field|add_class:"form-check-input" }}
                             </div>
+                        {% elif field.field.required %}
+                            {{ field|add_class:"form-control" }}
+                            <label for="{{ field.id_for_label }}" class="text-danger">
+                                *{{ field.label }}
+                            </label>
+                            {% if field.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ field.errors|striptags }}
+                            </div>
+                            {% endif %}
                         {% else %}
                             {{ field|add_class:"form-control" }}
-                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            <label for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                            </label>
                             {% if field.errors %}
                             <div class="invalid-feedback d-block">
                                 {{ field.errors|striptags }}

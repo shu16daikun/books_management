@@ -1,14 +1,29 @@
 from django.contrib.auth import login, authenticate
+from django.contrib.auth.forms import AuthenticationForm
+from django.http import HttpResponse
 from django.views.generic import TemplateView, CreateView, DetailView, UpdateView, DeleteView
 from django.shortcuts import redirect, resolve_url
 from django.contrib.auth.views import LoginView as BaseLoginView,  LogoutView as BaseLogoutView, PasswordChangeView, PasswordChangeDoneView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib import messages
 from django.urls import reverse_lazy
 from datetime import datetime
 from .forms import SignUpForm, LoginFrom, AccountsUpdateForm
-from .models import User
+from .models import User, UserToken
 from book.models import Lending
 from django.contrib.auth import get_user_model
+from django.views.decorators.cache import cache_control
+from django.utils.decorators import method_decorator
+from django.shortcuts import render
+import secrets
+
+def generate_user_token(user):
+    token = secrets.token_urlsafe()
+    UserToken.objects.update_or_create(user=user, defaults={'token': token})
+    return token
+
+def custom_permission_denied_view(request, exception=None):
+    return render(request, '403.html', status=403)
 
 class IndexView(TemplateView):
     """ ホームビュー """
@@ -42,19 +57,36 @@ class SignupView(CreateView):
     template_name = "accounts/signup.html" 
     success_url = reverse_lazy("accounts:index") # ユーザー作成後のリダイレクト先ページ
 
+    @method_decorator(cache_control(no_cache=True, must_revalidate=True, no_store=True))
+    def dispatch(self, *args, **kwargs):
+        # キャッシュ無効化のデコレーターを追加
+        return super().dispatch(*args, **kwargs)
+    
     def form_valid(self, form):
         # ユーザー作成後にそのままログイン状態にする設定
         response = super().form_valid(form)
         username = form.cleaned_data.get("username")
         password = form.cleaned_data.get("password1")
         user = authenticate(username=username, password=password)
-        login(self.request, user)
+        if user is not None:
+            login(self.request, user)
+        else:
+            response = self.form_invalid(form)  # ユーザーが存在しない場合はエラー処理
         return response
 
 # ログインビューを作成
 class LoginView(BaseLoginView):
     form_class = LoginFrom
     template_name = "accounts/login.html"
+
+    @method_decorator(cache_control(no_cache=True, must_revalidate=True, no_store=True))
+    def dispatch(self, *args, **kwargs):
+        # キャッシュ無効化のデコレーターを追加
+        return super().dispatch(*args, **kwargs)
+    
+    def form_invalid(self, form):
+        messages.error(self.request, 'メールアドレスかパスワードが間違っています。')
+        return super().form_invalid(form)
 
 class LogoutView(BaseLogoutView):
     success_url = reverse_lazy("accounts:index")

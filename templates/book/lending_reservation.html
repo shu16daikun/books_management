@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>貸出情報管理</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         html {
             min-height: 100%;
@@ -40,6 +41,14 @@
             padding: .5rem .75rem;
         }
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -91,7 +100,9 @@
                         {% for lending in lendings %}
                         <tr>
                             <td>{{ lending.user }}</td>
-                            <td>{{ lending.books.title }}</td>
+                            <td>{% if lending.reservation_checkout_date < today %}<i class="bi bi-exclamation-triangle-fill"></i>{% endif %}
+                                {{ lending.books.title }}
+                            </td>
                             <td>{% if lending.checkout_date %}{{ lending.checkout_date }}{% else %}--{% endif %}</td>
                             <td>{% if lending.scheduled_return_date %}{{ lending.scheduled_return_date }}{% else %}--{% endif %}</td>
                             <td>{% if lending.reservation_checkout_date %}{{ lending.reservation_checkout_date }}{% else %}--{% endif %}</td>

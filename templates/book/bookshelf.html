@@ -104,7 +104,7 @@
         
         @media (max-width: 576px) {
             .bookshelf li {
-                flex: 0 0 calc(50% - 1rem); /* 幅が576px以下のとき2列 (100% / 2 = 50%) */
+                flex: 0 0 calc(50% - 1rem); /* 幅が50%に設定（2列の場合） */
             }
         }
         
@@ -115,6 +115,14 @@
         }
 
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -150,25 +158,27 @@
                 <input type="search" value="{{ request.GET.query }}" name="query" class="form-control" placeholder="検索ワードを入力">
                 <button type="submit" class="btn btn-primary mt-2">検索</button>
             </form>
-            <div  class='bookshelf'>
-            {% for book in object_list %}
-            <li class="list-group-item">
-                <a href="{% url 'book:book_detail' book.pk %}">
-                    {% if book.image_link %}
-                        <img src="{{ book.image_link }}" alt="{{ book.title }}" class="book_img">
-                    {% else %}
-                        <div class="card book-card">
-                            <img src="{% static 'images/no_image.jpg' %}" class="card-img" alt="No image available">
-                            <div class="card-img-overlay">
-                                <h5 class="card-title">{{ book.title }}</h5>
+            <div class="container">
+                <div  class='bookshelf'>
+                {% for book in object_list %}
+                <li class="list-group-item">
+                    <a href="{% url 'book:book_detail' book.pk %}">
+                        {% if book.image_link %}
+                            <img src="{{ book.image_link }}" alt="{{ book.title }}" class="book_img">
+                        {% else %}
+                            <div class="card book-card">
+                                <img src="{% static 'images/no_image.jpg' %}" class="card-img" alt="No image available">
+                                <div class="card-img-overlay">
+                                    <h5 class="card-title">{{ book.title }}</h5>
+                                </div>
                             </div>
-                        </div>
-                    {% endif %}
-                </a>
-            </li>        
-            {% empty %}
-                <li>データがありません</li>
-            {% endfor %}
+                        {% endif %}
+                    </a>
+                </li>        
+                {% empty %}
+                    <li>データがありません</li>
+                {% endfor %}
+                </div>
             </div>
             <nav class="pagination">
                 <ul class="pagination">

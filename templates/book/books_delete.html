@@ -40,6 +40,14 @@
             margin-top: 2rem;
         }
     </style>
+    <script> 
+        window.onbeforeunload = function() {
+            // IE用。ここは空でOKです
+        };
+        window.onunload = function() {
+            // IE以外用。ここは空でOKです
+        };
+    </script>
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -67,21 +75,25 @@
   <main class="flex-shrink-0">
     <div class="container mt-5 pt-5">
         {% if user.is_superuser %}
-        <div class='main-title  border-bottom'>本削除画面</div>
-        <form method="post" class='form'>
-            {% csrf_token %}
-            <p>本タイトル "{{ object }}" を本当に削除しますか?</p>
-            {% if object.is_lend_out %}
-                <!-- storage が Books に使われている場合 -->
-                <button class="btn btn-danger btn-sm" onclick="alert('この本は貸出中のため、削除できません。'); return false;" disabled>貸出中のため、削除できません</button>
+            {% if not messeages %}
+                <div class='main-title  border-bottom'>本削除画面</div>
+                <form method="post" class='form'>
+                    {% csrf_token %}
+                    <p>本タイトル "{{ object }}" を本当に削除しますか?</p>
+                    {% if object.is_lend_out %}
+                        <!-- storage が Books に使われている場合 -->
+                        <button class="btn btn-danger btn-sm" onclick="alert('この本は貸出中のため、削除できません。'); return false;" disabled>貸出中のため、削除できません</button>
+                    {% else %}
+                        <!-- storage が Books に使われていない場合 -->
+                        <button type="submit" class="btn btn-danger">はい、削除します</button>
+                    {% endif %}
+                    <a href="{% url 'book:books_list' %}" class="btn btn-secondary">キャンセル</a>
+                </form>
             {% else %}
-                <!-- storage が Books に使われていない場合 -->
-                <button type="submit" class="btn btn-danger">はい、削除します</button>
+                <p class="text-danger">この本は既に削除されています</p>
             {% endif %}
-            <a href="{% url 'book:books_list' %}" class="btn btn-secondary">キャンセル</a>
-        </form>
         {% else %}
-        <a href="{% url 'book:index' %}" class="btn btn-primary">ホーム画面へ</a>
+        <a href="{% url 'book:index' %}" class="btn btn-secondary">ホーム画面へ</a>
         {% endif %}
     </div>
 </main>
