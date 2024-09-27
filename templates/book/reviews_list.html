@@ -84,10 +84,10 @@
                     {% if reviews %}
                     <thead class='table-dark'>
                         <tr>
-                            <th>ユーザー名</th>
-                            <th>本のタイトル</th>
+                            <th style="width:70px; min-width:70px;">ユーザー名</th>
+                            <th style="width:150px; min-width:150px;">本のタイトル</th>
                             <th>レビュー内容</th>
-                            <th>アクション</th>
+                            <th style="width:70px; min-width:70px;">アクション</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -96,7 +96,7 @@
                             <td>{{ review.user }}</td>
                             <td>{{ review.books.title }}</td>
                             <td>{{ review.comment }}</td>
-                            <td><a href="{% url 'book:reviews_delete' review.pk %}" class="btn btn-danger btn-sm">削除する</a></td>
+                            <td><a href="{% url 'book:reviews_delete' review.pk %}" class="btn btn-danger btn-sm">削除</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>

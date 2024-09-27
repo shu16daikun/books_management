@@ -115,7 +115,7 @@
                             <td>{% if lending.reservation_checkout_date %}{{ lending.reservation_checkout_date }}{% else %}--{% endif %}</td>
                             <td>{% if lending.reservation_scheduled_return_date %}{{ lending.reservation_scheduled_return_date }}{% else %}--{% endif %}</td>
                             <td>{% if lending.return_date %}{{ lending.return_date }}{% else %}--{% endif %}</td>
-                            <td><a href="{% url 'book:return_book' lending.pk %}" class="list-btn">返却する</a></td>
+                            <td><a href="{% url 'book:return_book' lending.pk  user_token url_token %}" class="list-btn">返却する</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -148,7 +148,7 @@
                             <td>{% if lending.reservation_checkout_date %}{{ lending.reservation_checkout_date }}{% else %}--{% endif %}</td>
                             <td>{% if lending.reservation_scheduled_return_date %}{{ lending.reservation_scheduled_return_date }}{% else %}--{% endif %}</td>
                             <td>{% if lending.return_date %}{{ lending.return_date }}{% else %}--{% endif %}</td>
-                            <td><a href="{% url 'book:return_book' lending.pk %}" class="list-btn">返却する</a></td>
+                            <td><a href="{% url 'book:return_book' lending.pk user_token url_token %}" class="list-btn">返却する</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -183,7 +183,7 @@
                             <td>{% if lending.reservation_checkout_date %}{{ lending.reservation_checkout_date }}{% else %}--{% endif %}</td>
                             <td>{% if lending.reservation_scheduled_return_date %}{{ lending.reservation_scheduled_return_date }}{% else %}--{% endif %}</td>
                             <td>{% if lending.return_date %}{{ lending.return_date }}{% else %}--{% endif %}</td>
-                            <td><a href="{% url 'book:cancel_reservation' lending.pk %}" class="list-btn">予約キャンセルする</a></td>
+                            <td><a href="{% url 'book:cancel_reservation' lending.pk user_token url_token %}" class="list-btn">予約キャンセルする</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>

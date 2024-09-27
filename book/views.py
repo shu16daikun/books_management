@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.views.generic import TemplateView, DetailView, ListView, CreateView, DeleteView, UpdateView
+from django.views.generic import View,TemplateView, DetailView, ListView, CreateView, DeleteView, UpdateView
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q
 from django.http import  HttpRequest, HttpResponse, JsonResponse
@@ -29,9 +29,53 @@ def get_user_token(user):
     except UserToken.DoesNotExist:
         return None  # トークンが存在しない場合は None を返す
 
+def search_user_token(user):
+    db_token = get_user_token(user)
+    if not db_token:
+        generate_user_token(user)
+        db_token = get_user_token(user)
+    return db_token 
+
+class BaseView(LoginRequiredMixin, View):
+    def check_token(self, request, user, session_token, url_token):
+        
+        db_token = search_user_token(user)
+        print(f"User: {user}, DB Token: {db_token}")
+
+        if db_token is not None:
+            user_token =  self.request.session.get('user_token')
+            print(f"URL User Token from DB: {user_token}")
+            user_token = UserToken.objects.filter(token=user_token).first()
+            print(f"User Token from DB: {user_token}")
+            if user_token is None or user.id != user_token.user_id:
+                print(f"Token mismatch or invalid user. User ID: {user.id}, Token User ID: {user_token.user_id if user_token else 'None'}")
+                return HttpResponseForbidden("不正なアクセスです。")
+        else:
+            print("DB Token is None")
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        if not session_token or session_token != url_token:
+            print(f"Session Token: {session_token}, URL Token: {url_token}")
+            return HttpResponseForbidden("不正なアクセスです。")
+
+        return None  # トークンチェックが成功した場合はNoneを返す
+    
+    
 class IndexView(TemplateView):
     """ ホームビュー """
     template_name = "index.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -57,6 +101,18 @@ class IndexView(TemplateView):
 class InformationView(LoginRequiredMixin, TemplateView):
     template_name = "book/information.html"
     login_url = 'accounts:login' 
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -72,6 +128,18 @@ class StorageListView(LoginRequiredMixin, ListView):
     login_url = 'accounts:login' 
     model = Storage
     ordering = ['floor', 'area']
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -94,6 +162,17 @@ class StorageCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('book:storage_list')
     def form_valid(self, form):
         return super().form_valid(form)
+    
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
 
 class StorageUpdateView(LoginRequiredMixin, UpdateView):
     model = Storage
@@ -103,12 +182,34 @@ class StorageUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy('book:storage_list')
     def form_valid(self, form):
         return super().form_valid(form)
+    
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
 
 class StorageDeleteView(LoginRequiredMixin, DeleteView):
     model = Storage
     template_name = "book/storage_delete.html"
     login_url = 'accounts:login' 
     success_url = reverse_lazy('book:storage_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
         # オブジェクトを取得
@@ -136,6 +237,18 @@ class BookManagementListView(LoginRequiredMixin, ListView):
     login_url = 'accounts:login' 
     model = Books
     paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
         queryset = super().get_queryset().order_by('id')
         query = self.request.GET.get('query')
@@ -223,6 +336,17 @@ class BookCreateView(LoginRequiredMixin, CreateView):
     login_url = 'accounts:login' 
     success_url = reverse_lazy('book:books_list')
 
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         isbn = form.cleaned_data.get('isbn')
         if Books.objects.filter(isbn=isbn).exists():
@@ -252,6 +376,17 @@ class BookDeleteView(LoginRequiredMixin, DeleteView):
     login_url = 'accounts:login' 
     success_url = reverse_lazy('book:books_list')
 
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+
     def get_object(self, queryset=None):
         # オブジェクトを取得
         obj = super().get_object(queryset)
@@ -265,12 +400,32 @@ class BookUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'book/books_update.html'
     login_url = 'accounts:login' 
     success_url = reverse_lazy('book:books_list')
-    def form_valid(self, form):
-        return super().form_valid(form)
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
 
 class LendingManagementView(LoginRequiredMixin, TemplateView):
     template_name = "book/lending_management.html"
     login_url = 'accounts:login' 
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
 
 class LendingReservationView(LoginRequiredMixin, ListView):
     template_name = "book/lending_reservation.html"
@@ -278,6 +433,18 @@ class LendingReservationView(LoginRequiredMixin, ListView):
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
         return Lending.objects.filter(
             reservation_checkout_date__isnull=False,
@@ -298,6 +465,18 @@ class LendingCancelView(LoginRequiredMixin, ListView):
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
         return Lending.objects.filter(
             reservation_checkout_date__isnull=False,
@@ -310,6 +489,18 @@ class LendingNowView(LoginRequiredMixin, ListView):
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
         return Lending.objects.filter(
             return_date__isnull=True,
@@ -330,6 +521,18 @@ class LendingReturnView(LoginRequiredMixin, ListView):
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
         return Lending.objects.filter(
             return_date__isnull=False
@@ -341,6 +544,18 @@ class LendingOverdueView(LoginRequiredMixin, ListView):
     model = Lending
     paginate_by = 30
     context_object_name = 'lendings'
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
         today = datetime.today().date()
         return Lending.objects.filter(
@@ -356,11 +571,33 @@ class ReviewListView(LoginRequiredMixin, ListView):
     paginate_by = 30
     ordering = ['-pk']
 
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+
 class ReviewDeleteView(LoginRequiredMixin, DeleteView):
     model = Review
     template_name = "book/reviews_delete.html"
     login_url = 'accounts:login' 
     success_url = reverse_lazy('book:reviews_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
         # オブジェクトを取得
@@ -381,6 +618,18 @@ class BookshelfView(LoginRequiredMixin, ListView):
     login_url = 'accounts:login' 
     model = Books
     paginate_by = 100
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
         return Books.objects.order_by('id') 
 
@@ -389,6 +638,18 @@ class BookSearchView(LoginRequiredMixin, ListView):
     login_url = 'accounts:login' 
     model = Books
     paginate_by = 100
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
         queryset = super().get_queryset()
         query = self.request.GET.get('query')
@@ -431,6 +692,18 @@ class BookDetailView(LoginRequiredMixin, DetailView):
     login_url = 'accounts:login' 
     model = Books
     context_object_name = 'book'
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
@@ -439,11 +712,22 @@ class BookDetailView(LoginRequiredMixin, DetailView):
             context['reviews'] = Review.objects.filter(books=book)
         return context
 
-class BookReservationView(LoginRequiredMixin, CreateView):
+class BookReservationView(BaseView, CreateView):
     model = Lending
     form_class = BookReservationForm
     template_name = 'book/book_reservation.html'
     login_url = 'accounts:login'
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -515,43 +799,33 @@ class BookReservationView(LoginRequiredMixin, CreateView):
         return context
     
     def get_success_url(self):
-        # 許可されたリファラURL
-        token = secrets.token_urlsafe()
-        self.request.session['reservation_token'] = token  # トークンをセッションに保存
-        return reverse('book:book_reservation_done', kwargs={'book_pk': self.kwargs['book_pk'], 'pk': self.object.pk, 'token': token})
+        url_token = secrets.token_urlsafe()
+        self.request.session['session_token'] = url_token  # トークンをセッションに保存
+        print(f'url:{self.request.session.get('session_token')}')#デバック
+        user = self.request.user
+        user_token = search_user_token(user)
+        self.request.session['user_token'] = user_token
+        print(f'User:{user_token}')
+        return reverse('book:book_reservation_done', kwargs={'book_pk': self.kwargs['book_pk'], 'pk': self.object.pk, 'user_token': user_token, 'url_token': url_token})
 
-class BookReservationDoneView(LoginRequiredMixin, DetailView):
+class BookReservationDoneView(BaseView,DetailView):
     template_name = "book/book_reservation_done.html"
     login_url = 'accounts:login' 
     model = Lending
 
     def dispatch(self, request, *args, **kwargs):
-        user = request.user
-        session_token = request.session.get('reservation_token')
-        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
-        url_token = kwargs.get('token')
-
-        if not db_token:
-            generate_user_token(user)  # 新しいトークンを生成
-            db_token = get_user_token(user)  # 生成したトークンを再度取得
-
-        # db_tokenがNoneでないことを確認
-        if db_token is not None:
-            # UserTokenを取得
-            user_token = UserToken.objects.filter(token=db_token).first()
-            if user_token is None or user.id != user_token.user_id:
-                print('a')
-                return HttpResponseForbidden("不正なアクセスです。")
-        else:
-            print('b')
-            return HttpResponseForbidden("不正なアクセスです。")
-
-        if not session_token or session_token != url_token:
-            print('c')
-            return HttpResponseForbidden("不正なアクセスです。")
-
+        user = self.request.user
+        if user.is_authenticated:
+            #許可されたURLのみ画面を表示する処理
+            user = request.user
+            session_token = request.session.get('session_token')
+            print(self.request.session.get('session_token'))#デバック
+            url_token = kwargs.get('url_token')
+            print(f'URL:{url_token}')#デバック
+            error_response = self.check_token(request, user, session_token, url_token)
+            if error_response:
+                return error_response
         return super().dispatch(request, *args, **kwargs)
-
 
     def get_context_data(self, **kwargs):
         user = self.request.user
@@ -568,11 +842,23 @@ class BookReservationDoneView(LoginRequiredMixin, DetailView):
             context['storage'] = storage
         return context
 
-class BookRentView(LoginRequiredMixin, CreateView):
+class BookRentView(BaseView,CreateView):
     model = Lending
     form_class = BookRentForm
     template_name = 'book/book_rent.html'
     login_url = 'accounts:login' 
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['initial']['books'] = get_object_or_404(Books, pk=self.kwargs['book_pk'])
@@ -650,43 +936,34 @@ class BookRentView(LoginRequiredMixin, CreateView):
         return context
     
     def get_success_url(self):
-        # 許可されたリファラURL
-        token = secrets.token_urlsafe()
-        self.request.session['rent_token'] = token  # トークンをセッションに保存
-        return reverse('book:book_rent_done', kwargs={'book_pk': self.kwargs['book_pk'], 'pk': self.object.pk, 'token': token})
+        url_token = secrets.token_urlsafe()
+        self.request.session['session_token'] = url_token  # トークンをセッションに保存
+        print(f'url:{self.request.session.get('session_token')}')#デバック
+        user = self.request.user
+        user_token = search_user_token(user)
+        self.request.session['user_token'] = user_token
+        print(f'User:{user_token}')
+        return reverse('book:book_rent_done', kwargs={'book_pk': self.kwargs['book_pk'], 'pk': self.object.pk, 'user_token': user_token, 'url_token': url_token,})
 
 
-class BookRentDoneView(LoginRequiredMixin, DetailView):
+class BookRentDoneView(BaseView,DetailView):
     template_name = "book/book_rent_done.html"
     login_url = 'accounts:login' 
     model = Lending
 
     def dispatch(self, request, *args, **kwargs):
-        user = request.user
-        session_token = request.session.get('rent_token')
-        url_token = kwargs.get('token')
-        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
-        
-        if not db_token:
-            generate_user_token(user)  # 新しいトークンを生成
-            db_token = get_user_token(user)  # 生成したトークンを再度取得
-        # db_tokenがNoneでないことを確認
-        if db_token is not None:
-            # UserTokenを取得
-            user_token = UserToken.objects.filter(token=db_token).first()
-            if user_token is None or user.id != user_token.user_id:
-                print('a')
-                return HttpResponseForbidden("不正なアクセスです。")
-        else:
-            print('b')
-            return HttpResponseForbidden("不正なアクセスです。")
-
-        if not session_token or session_token != url_token:
-            print('c')
-            return HttpResponseForbidden("不正なアクセスです。")
-
+        user = self.request.user
+        if user.is_authenticated:
+            #許可されたURLのみ画面を表示する処理
+            user = request.user
+            session_token = request.session.get('session_token')
+            print(self.request.session.get('session_token'))#デバック
+            url_token = kwargs.get('url_token')
+            print(f'URL:{url_token}')#デバック
+            error_response = self.check_token(request, user, session_token, url_token)
+            if error_response:
+                return error_response
         return super().dispatch(request, *args, **kwargs)
-
 
     def get_context_data(self, **kwargs):
         user = self.request.user
@@ -703,14 +980,26 @@ class BookRentDoneView(LoginRequiredMixin, DetailView):
             context['storage'] = storage
         return context
 
-class RentListView(LoginRequiredMixin, ListView):
+class RentListView(BaseView, ListView):
     template_name = "book/rent_list.html"
     login_url = 'accounts:login' 
     model = Lending
 
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            user = self.request.user
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         user = self.request.user
-        return Lending.objects.filter(user=user)
+        if user.is_authenticated:
+            return Lending.objects.filter(user=user)
 
     def get_context_data(self, **kwargs):
         user = self.request.user
@@ -748,40 +1037,41 @@ class RentListView(LoginRequiredMixin, ListView):
                 cancel_date__isnull=True,
             ).order_by('reservation_checkout_date')
 
+            url_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = url_token  # トークンをセッションに保存
+            kwargs['url_token'] = url_token
+            print(self.request.session.get('session_token'))#デバック
+            print(f'URL:{url_token}')#デバック
+            user_token = search_user_token(user)
+
             context['overdue_lendings'] = overdue_lendings
             context['returned_lendings'] = returned_lendings
             context['renting_lendings'] = renting_lendings
             context['reserved_lendings'] = reserved_lendings
             context['today'] = today
-            
+            context['url_token'] = url_token
+            context['user_token'] = user_token
         return context
 
-class ReturnBookView(LoginRequiredMixin, UpdateView):
+class ReturnBookView(BaseView, UpdateView):
     model = Lending
     fields = ['return_date']
     template_name = 'book/return_book.html'
     login_url = 'accounts:login' 
 
     def dispatch(self, request, *args, **kwargs):
-        user = request.user
-        session_token = request.session.get('return_token')
-        url_token = kwargs.get('token')
-        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
+        user = self.request.user
+        if user.is_authenticated:
+            #許可されたURLのみ画面を表示する処理
+            user = request.user
+            session_token = request.session.get('session_token')
+            print(self.request.session.get('session_token'))#デバック
+            url_token = kwargs.get('url_token')
+            print(f'URL:{url_token}')#デバック
+            error_response = self.check_token(request, user, session_token, url_token)
+            if error_response:
+                return error_response
         
-        if not db_token:
-            generate_user_token(user)  # 新しいトークンを生成
-            db_token = get_user_token(user)  # 生成したトークンを再度取得
-        # db_tokenがNoneでないことを確認
-        if db_token is not None:
-            # UserTokenを取得
-            user_token = UserToken.objects.filter(token=db_token).first()
-            if user_token is None or user.id != user_token.user_id:
-                print('a')
-                return HttpResponseForbidden("不正なアクセスです。")
-        else:
-            print('b')
-            return HttpResponseForbidden("不正なアクセスです。")
-
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -795,10 +1085,8 @@ class ReturnBookView(LoginRequiredMixin, UpdateView):
             scheduled_return_date__gte=today,
             return_date__isnull=True
         )
-        print("Lendings:", lendings)  # デバッグ出力
         book.is_lend_out = False
         book.save()
-        print("Books.is_lend_out:", book.is_lend_out)
         response =  super().form_valid(form)
         return response 
     def get_context_data(self, **kwargs):
@@ -811,42 +1099,37 @@ class ReturnBookView(LoginRequiredMixin, UpdateView):
             book = lending.books
             context['book'] = book
         return context
+    
     def get_success_url(self):
-        # 許可されたリファラURL
-        token = secrets.token_urlsafe()
-        self.request.session['return_token'] = token  # トークンをセッションに保存
-        return reverse('book:review', kwargs={'pk': self.object.pk, 'token': token})
+        url_token = secrets.token_urlsafe()
+        self.request.session['session_token'] = url_token  # トークンをセッションに保存
+        print(f'url:{self.request.session.get('session_token')}')#デバック
+        user = self.request.user
+        user_token = search_user_token(user)
+        self.request.session['user_token'] = user_token
+        print(f'User:{user_token}')
+        return reverse('book:review', kwargs={'pk': self.object.pk, 'user_token': user_token, 'url_token': url_token,})
 
-class ReviewView(LoginRequiredMixin, CreateView):
+class ReviewView(BaseView, CreateView):
     model = Review
     form_class = ReviewForm
     template_name = 'book/review.html'
     login_url = 'accounts:login' 
 
     def dispatch(self, request, *args, **kwargs):
-        user = request.user
-        session_token = request.session.get('return_token')
-        url_token = kwargs.get('token')
-        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
-        
-        if not db_token:
-            generate_user_token(user)  # 新しいトークンを生成
-            db_token = get_user_token(user)  # 生成したトークンを再度取得
-        # db_tokenがNoneでないことを確認
-        if db_token is not None:
-            # UserTokenを取得
-            user_token = UserToken.objects.filter(token=db_token).first()
-            if user_token is None or user.id != user_token.user_id:
-                print('a')
-                return HttpResponseForbidden("不正なアクセスです。")
-        else:
-            print('b')
-            return HttpResponseForbidden("不正なアクセスです。")
-        if not session_token or session_token != url_token:
-            print('c')
-            return HttpResponseForbidden("不正なアクセスです。")
-
+        user = self.request.user
+        if user.is_authenticated:
+            #許可されたURLのみ画面を表示する処理
+            user = request.user
+            session_token = request.session.get('session_token')
+            print(self.request.session.get('session_token'))#デバック
+            url_token = kwargs.get('url_token')
+            print(f'URL:{url_token}')#デバック
+            error_response = self.check_token(request, user, session_token, url_token)
+            if error_response:
+                return error_response
         return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         lending = get_object_or_404(Lending, pk=self.kwargs['pk'])
         form.instance.books = lending.books
@@ -863,39 +1146,33 @@ class ReviewView(LoginRequiredMixin, CreateView):
         return context
 
     def get_success_url(self):
-        # 許可されたリファラURL
-        token = secrets.token_urlsafe()
-        self.request.session['review_token'] = token  # トークンをセッションに保存
-        return reverse('book:review_done', kwargs={'pk': self.object.pk, 'token': token})
+        url_token = secrets.token_urlsafe()
+        self.request.session['session_token'] = url_token  # トークンをセッションに保存
+        print(f'url:{self.request.session.get('session_token')}')#デバック
+        user = self.request.user
+        user_token = search_user_token(user)
+        self.request.session['user_token'] = user_token
+        print(f'User:{user_token}')
+        return reverse('book:review_done', kwargs={'pk': self.object.pk, 'user_token': user_token, 'url_token': url_token,})
 
 
-class ReviewDoneView(LoginRequiredMixin, DetailView):
+class ReviewDoneView(BaseView, DetailView):
     template_name = "book/review_done.html"
     login_url = 'accounts:login' 
     model = Review
     def dispatch(self, request, *args, **kwargs):
-        user = request.user
-        session_token = request.session.get('review_token')
-        url_token = kwargs.get('token')
-        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
+        user = self.request.user
+        if user.is_authenticated:
+            #許可されたURLのみ画面を表示する処理
+            user = request.user
+            session_token = request.session.get('session_token')
+            print(self.request.session.get('session_token'))#デバック
+            url_token = kwargs.get('url_token')
+            print(f'URL:{url_token}')#デバック
+            error_response = self.check_token(request, user, session_token, url_token)
+            if error_response:
+                return error_response
         
-        if not db_token:
-            generate_user_token(user)  # 新しいトークンを生成
-            db_token = get_user_token(user)  # 生成したトークンを再度取得
-        # db_tokenがNoneでないことを確認
-        if db_token is not None:
-            # UserTokenを取得
-            user_token = UserToken.objects.filter(token=db_token).first()
-            if user_token is None or user.id != user_token.user_id:
-                print('a')
-                return HttpResponseForbidden("不正なアクセスです。")
-        else:
-            print('b')
-            return HttpResponseForbidden("不正なアクセスです。")
-        if not session_token or session_token != url_token:
-            print('c')
-            return HttpResponseForbidden("不正なアクセスです。")
-
         return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
@@ -910,7 +1187,7 @@ class ReviewDoneView(LoginRequiredMixin, DetailView):
             context['comment'] = review.comment
         return context
 
-class CancelReservationView(LoginRequiredMixin, UpdateView):
+class CancelReservationView(BaseView, UpdateView):
     model = Lending
     fields = ['cancel_date']
     template_name = 'book/cancel_reservation.html'
@@ -918,23 +1195,18 @@ class CancelReservationView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy('book:rent_list')
 
     def dispatch(self, request, *args, **kwargs):
-        user = request.user
-        db_token = get_user_token(user)  # 現在のユーザーに関連するトークンを取得
-        
-        if not db_token:
-            generate_user_token(user)  # 新しいトークンを生成
-            db_token = get_user_token(user)  # 生成したトークンを再度取得
-        # db_tokenがNoneでないことを確認
-        if db_token is not None:
-            # UserTokenを取得
-            user_token = UserToken.objects.filter(token=db_token).first()
-            if user_token is None or user.id != user_token.user_id:
-                print('a')
-                return HttpResponseForbidden("不正なアクセスです。")
-        else:
-            print('b')
-            return HttpResponseForbidden("不正なアクセスです。")
-
+        user = self.request.user
+        if user.is_authenticated:
+            #許可されたURLのみ画面を表示する処理
+            user = request.user
+            session_token = request.session.get('session_token')
+            print(self.request.session.get('session_token'))#デバック
+            url_token = kwargs.get('url_token')
+            print(f'URL:{url_token}')#デバック
+            error_response = self.check_token(request, user, session_token, url_token)
+            if error_response:
+                return error_response
+            
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -948,11 +1220,9 @@ class CancelReservationView(LoginRequiredMixin, UpdateView):
             scheduled_return_date__gte=today,
             return_date__isnull=True
         )
-        print("Lendings:", lendings)
         if not lendings:
             book.is_lend_out = False
             book.save()
-        print("Books.is_lend_out:", book.is_lend_out)
         response =  super().form_valid(form)
         return response 
     

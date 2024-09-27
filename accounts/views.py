@@ -16,11 +16,7 @@ from django.views.decorators.cache import cache_control
 from django.utils.decorators import method_decorator
 from django.shortcuts import render
 import secrets
-
-def generate_user_token(user):
-    token = secrets.token_urlsafe()
-    UserToken.objects.update_or_create(user=user, defaults={'token': token})
-    return token
+from book.views import generate_user_token, get_user_token, search_user_token
 
 def custom_permission_denied_view(request, exception=None):
     return render(request, '403.html', status=403)
@@ -28,6 +24,18 @@ def custom_permission_denied_view(request, exception=None):
 class IndexView(TemplateView):
     """ ホームビュー """
     template_name = "index.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            session_token = secrets.token_urlsafe()
+            self.request.session['session_token'] = session_token  # トークンをセッションに保存
+            print(self.request.session.get('session_token'))#デバック
+            
+            user_token = search_user_token(user)
+            self.request.session['user_token'] = user_token
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         user = self.request.user
         context = super().get_context_data(**kwargs)
